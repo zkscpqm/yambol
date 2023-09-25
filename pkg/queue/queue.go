@@ -1,41 +1,47 @@
 package queue
 
-import "sync"
+import (
+	"sync"
+)
 
-type Queue[_T ValueType] struct {
-	mx      *sync.RWMutex
-	minSize int
-	maxSize int
-	items   []item[_T]
-	factory itemFactory[_T]
+type Queue struct {
+	mx           *sync.RWMutex
+	minLen       int
+	maxLen       int
+	maxSizeBytes int
+	items        []item
+	factory      itemFactory
 }
 
-func New[_T ValueType](minSize, maxSize int) Queue[_T] {
-	return Queue[_T]{
-		mx:      &sync.RWMutex{},
-		minSize: minSize,
-		maxSize: maxSize,
-		items:   make([]item[_T], 0, minSize),
-		factory: newItemFactory[_T](),
+func New(minLen, maxLen, maxSizeBytes int) *Queue {
+	if minLen <= 0 {
+		minLen = 1
+	}
+	return &Queue{
+		mx:           &sync.RWMutex{},
+		minLen:       minLen,
+		maxLen:       maxLen,
+		maxSizeBytes: maxSizeBytes,
+		items:        make([]item, 0, minLen),
+		factory:      newItemFactory(),
 	}
 }
 
-// Internal method that gets length without locking.
-func (q *Queue[_T]) len() int {
+func (q *Queue) len() int {
 	return len(q.items)
 }
 
-func (q *Queue[_T]) Len() int {
+func (q *Queue) Len() int {
 	q.mx.RLock()
 	defer q.mx.RUnlock()
 	return q.len()
 }
 
-func (q *Queue[_T]) PushBatch(values ..._T) ([]int, error) {
+func (q *Queue) PushBatch(values ...string) ([]int, error) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if q.len()+len(values) >= q.maxSize {
+	if q.len()+len(values) >= q.maxLen {
 		return nil, ErrQueueFull
 	}
 
@@ -48,11 +54,11 @@ func (q *Queue[_T]) PushBatch(values ..._T) ([]int, error) {
 	return uids, nil
 }
 
-func (q *Queue[_T]) Push(value _T) (int, error) {
+func (q *Queue) Push(value string) (int, error) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if q.len() == q.maxSize {
+	if q.len() == q.maxLen {
 		return -1, ErrQueueFull
 	}
 
@@ -61,28 +67,37 @@ func (q *Queue[_T]) Push(value _T) (int, error) {
 	return item_.uid, nil
 }
 
-func (q *Queue[_T]) Pop() (*_T, error) {
+func (q *Queue) Pop() (string, error) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
 	if q.len() == 0 {
-		return nil, ErrQueueEmpty
+		return "", ErrQueueEmpty
 	}
 
 	item_ := q.pop()
 	q.factory.removeUid(item_.uid)
-	return &item_.value, nil
+	return item_.value, nil
 }
 
-func (q *Queue[_T]) Drain() []_T {
+func (q *Queue) peek() *item {
+	q.mx.RLock()
+	defer q.mx.RUnlock()
+	if q.len() == 0 {
+		return nil
+	}
+	return &q.items[0]
+}
+
+func (q *Queue) Drain() []string {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
 	if q.len() == 0 {
-		return []_T{}
+		return []string{}
 	}
 
-	values := make([]_T, q.len())
+	values := make([]string, q.len())
 	for i, item_ := range q.items {
 		values[i] = item_.value
 	}
@@ -90,14 +105,14 @@ func (q *Queue[_T]) Drain() []_T {
 	return values
 }
 
-func (q *Queue[_T]) pop() item[_T] {
+func (q *Queue) pop() item {
 	item_ := q.items[0]
 	q.items = q.items[1:]
 
 	// Shrink the underlying array when it is less than half full
 	// chatgpt optimization magic idk but it works
-	if cap(q.items) > q.minSize && len(q.items) < cap(q.items)/2 {
-		newItems := make([]item[_T], len(q.items), len(q.items)*2)
+	if cap(q.items) > q.minLen && len(q.items) < cap(q.items)/2 {
+		newItems := make([]item, len(q.items), len(q.items)*2)
 		copy(newItems, q.items)
 		q.items = newItems
 	}
@@ -105,7 +120,7 @@ func (q *Queue[_T]) pop() item[_T] {
 	return item_
 }
 
-func (q *Queue[_T]) clear() {
-	q.items = make([]item[_T], 0, q.minSize)
+func (q *Queue) clear() {
+	q.items = make([]item, 0, q.minLen)
 	q.factory.clear()
 }

@@ -10,28 +10,37 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-type ValueType interface {
-	string | int | float64
-}
-
-type item[_t ValueType] struct {
+type item struct {
 	uid   int
-	value _t
+	value string
+	ts    time.Time
+	ttl   time.Duration
 }
 
-type itemFactory[_t ValueType] struct {
+func (i *item) String() string {
+	return i.value
+}
+
+func (i *item) Expired() bool {
+	if i.ttl == 0 {
+		return false
+	}
+	return time.Now().After(i.ts.Add(i.ttl))
+}
+
+type itemFactory struct {
 	uidMap map[int]struct{}
 	mx     *sync.RWMutex
 }
 
-func newItemFactory[_t ValueType]() itemFactory[_t] {
-	return itemFactory[_t]{
+func newItemFactory() itemFactory {
+	return itemFactory{
 		uidMap: make(map[int]struct{}),
 		mx:     &sync.RWMutex{},
 	}
 }
 
-func (f *itemFactory[_t]) generateUid() int {
+func (f *itemFactory) generateUid() int {
 	f.mx.Lock()
 	defer f.mx.Unlock()
 	for {
@@ -43,21 +52,22 @@ func (f *itemFactory[_t]) generateUid() int {
 	}
 }
 
-func (f *itemFactory[_t]) removeUid(uid int) {
+func (f *itemFactory) removeUid(uid int) {
 	f.mx.Lock()
 	defer f.mx.Unlock()
 	delete(f.uidMap, uid)
 }
 
-func (f *itemFactory[_t]) clear() {
+func (f *itemFactory) clear() {
 	f.mx.Lock()
 	defer f.mx.Unlock()
 	f.uidMap = make(map[int]struct{})
 }
 
-func (f *itemFactory[_t]) newItem(val _t) item[_t] {
-	return item[_t]{
+func (f *itemFactory) newItem(val string) item {
+	return item{
 		uid:   f.generateUid(),
 		value: val,
+		ts:    time.Now(),
 	}
 }

@@ -8,18 +8,16 @@ import (
 	"runtime/pprof"
 	"strings"
 	"time"
-	"unsafe"
 	"yambol/pkg/queue"
 )
 
 const (
-	minMaxSize  = 1024 * 1024 * 1024
-	seconds     = 10
-	smallString = "abcdefghijklmnop" // 16 bytes
-	largeString = "a"                // Will be multiplied to 1024 bytes
+	minMaxSize = 1024 * 1024 * 1024
+	seconds    = 10
+	oneByte    = "a"
 )
 
-func produceLoop[_T queue.ValueType](q *queue.Queue[_T], val _T, stop *bool) (total, successful int) {
+func produceLoop(q *queue.Queue, val string, stop *bool) (total, successful int) {
 	var err error
 	for !*stop {
 		_, err = q.Push(val)
@@ -31,13 +29,9 @@ func produceLoop[_T queue.ValueType](q *queue.Queue[_T], val _T, stop *bool) (to
 	return
 }
 
-func consumeLoop[_T queue.ValueType](q *queue.Queue[_T], stop *bool) (total, successful int) {
-	noop := func(_T) {} // To help dereferencing
+func consumeLoop(q *queue.Queue, stop *bool) (total, successful int) {
 	for !*stop {
-		pVal, err := q.Pop()
-		if pVal != nil {
-			noop(*pVal)
-		}
+		_, err := q.Pop()
 		total++
 		if err == nil {
 			successful++
@@ -46,8 +40,9 @@ func consumeLoop[_T queue.ValueType](q *queue.Queue[_T], stop *bool) (total, suc
 	return
 }
 
-func test[_T queue.ValueType](val _T, label string, size int) {
-	q := queue.New[_T](minMaxSize, minMaxSize)
+func test(val string) {
+	size := len(val)
+	q := queue.New(minMaxSize, minMaxSize)
 
 	stop := false
 	prodTotal := 0
@@ -87,26 +82,12 @@ func test[_T queue.ValueType](val _T, label string, size int) {
 		return fmt.Sprintf("%.2f%s", totalSize, unit)
 	}
 
-	log.Printf("[%s-%d] Total Consume: %d (%s)", label, size, prodTotal, calculateVolume(prodTotal))
-	log.Printf("[%s-%d] Total Produce: %d (%s)", label, size, consTotal, calculateVolume(consTotal))
-	log.Printf("[%s-%d] Successful Consume: %d (%s)", label, size, prodSuccessful, calculateVolume(prodSuccessful))
-	log.Printf("[%s-%d] Successful Produce: %d (%s)", label, size, consSuccessful, calculateVolume(consSuccessful))
-	log.Printf("[%s-%d] Total Throughput: %d (%s/s)", label, size, consTotal/seconds, calculateVolume(consTotal/seconds))
-	log.Printf("[%s-%d] Successful Throughput: %d (%s/s)", label, size, consSuccessful/seconds, calculateVolume(consSuccessful/seconds))
-}
-
-func testInt() {
-	v := int(0)
-	test[int](v, "INT", int(unsafe.Sizeof(v)))
-}
-
-func testFloat64() {
-	v := float64(0.0)
-	test[float64](v, "FLOAT64", int(unsafe.Sizeof(v)))
-}
-
-func testString(content string) {
-	test[string](content, "STRING", len(content))
+	log.Printf("[%dB] Total Consume: %d (%s)", size, prodTotal, calculateVolume(prodTotal))
+	log.Printf("[%dB] Total Produce: %d (%s)", size, consTotal, calculateVolume(consTotal))
+	log.Printf("[%dB] Successful Consume: %d (%s)", size, prodSuccessful, calculateVolume(prodSuccessful))
+	log.Printf("[%dB] Successful Produce: %d (%s)", size, consSuccessful, calculateVolume(consSuccessful))
+	log.Printf("[%dB] Total Throughput: %d (%s/s)", size, consTotal/seconds, calculateVolume(consTotal/seconds))
+	log.Printf("[%dB] Successful Throughput: %d (%s/s)", size, consSuccessful/seconds, calculateVolume(consSuccessful/seconds))
 }
 
 func main() {
@@ -120,9 +101,8 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	testInt()
-	testFloat64()
-	testString(smallString)
-	testString(strings.Repeat(largeString, 1024))
+	for _, sizes := range []int{8, 16, 512, 1024} {
+		test(strings.Repeat(oneByte, sizes))
+	}
 	pprof.StopCPUProfile()
 }
