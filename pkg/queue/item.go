@@ -15,6 +15,18 @@ type item struct {
 	value string
 	ts    time.Time
 	ttl   time.Duration
+	tiq   time.Duration
+}
+
+func (i *item) dequeue() {
+	i.tiq = time.Since(i.ts)
+}
+
+func (i *item) TimeInQueue() time.Duration {
+	if i.tiq == 0 {
+		return time.Since(i.ts)
+	}
+	return i.tiq
 }
 
 func (i *item) String() string {
@@ -22,10 +34,7 @@ func (i *item) String() string {
 }
 
 func (i *item) Expired() bool {
-	if i.ttl == 0 {
-		return false
-	}
-	return time.Now().After(i.ts.Add(i.ttl))
+	return i.ttl != 0 && i.TimeInQueue() >= i.ttl
 }
 
 type itemFactory struct {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	"yambol/pkg/queue"
+	"yambol/pkg/telemetry"
 )
 
 var (
@@ -93,12 +94,14 @@ type QueueOptions struct {
 type MessageBroker struct {
 	queues map[string]*queue.Queue
 	unsent map[string][]string
+	stats  *telemetry.Collector
 }
 
 func NewMessageBroker() *MessageBroker {
 	return &MessageBroker{
 		queues: make(map[string]*queue.Queue),
 		unsent: make(map[string][]string),
+		stats:  telemetry.NewCollector(),
 	}
 }
 
@@ -107,11 +110,13 @@ func (mb *MessageBroker) AddDefaultQueue(queueName string) {
 }
 
 func (mb *MessageBroker) AddQueue(queueName string, minLen, maxLen, maxSizeBytes int, ttl time.Duration) {
+	queueStats := mb.stats.AddQueue(queueName)
 	mb.queues[queueName] = queue.New(
 		determineMinLen(minLen),
 		determineMaxLen(maxLen),
 		determineMaxSizeBytes(maxSizeBytes),
 		determineTTL(ttl),
+		queueStats,
 	)
 	mb.unsent[queueName] = make([]string, 0)
 }

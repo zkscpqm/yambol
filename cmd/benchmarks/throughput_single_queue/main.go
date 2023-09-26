@@ -8,13 +8,16 @@ import (
 	"runtime/pprof"
 	"strings"
 	"time"
+
 	"yambol/pkg/queue"
+	"yambol/pkg/telemetry"
 )
 
 const (
-	minMaxSize = 1024 * 1024 * 1024
-	seconds    = 10
-	oneByte    = "a"
+	minMaxLen = 1024 * 1024
+	maxSize   = 1024 * 1024 * 32
+	seconds   = 5
+	oneByte   = "a"
 )
 
 func produceLoop(q *queue.Queue, val string, stop *bool) (total, successful int) {
@@ -42,7 +45,7 @@ func consumeLoop(q *queue.Queue, stop *bool) (total, successful int) {
 
 func test(val string) {
 	size := len(val)
-	q := queue.New(minMaxSize, minMaxSize)
+	q := queue.New(minMaxLen, minMaxLen, maxSize, 0, &telemetry.QueueStats{})
 
 	stop := false
 	prodTotal := 0
@@ -51,10 +54,10 @@ func test(val string) {
 	consSuccessful := 0
 
 	go func() {
-		prodTotal, prodSuccessful = produceLoop(&q, val, &stop)
+		prodTotal, prodSuccessful = produceLoop(q, val, &stop)
 	}()
 	go func() {
-		consTotal, consSuccessful = consumeLoop(&q, &stop)
+		consTotal, consSuccessful = consumeLoop(q, &stop)
 	}()
 
 	time.Sleep(time.Second * seconds)

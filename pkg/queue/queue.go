@@ -3,6 +3,7 @@ package queue
 import (
 	"sync"
 	"time"
+	"yambol/pkg/telemetry"
 )
 
 type Queue struct {
@@ -12,13 +13,15 @@ type Queue struct {
 	maxSizeBytes int
 	items        []item
 	factory      itemFactory
+	stats        *telemetry.QueueStats
 }
 
-func New(minLen, maxLen, maxSizeBytes int, defaultTTL time.Duration) *Queue {
+func New(minLen, maxLen, maxSizeBytes int, defaultTTL time.Duration, stats *telemetry.QueueStats) *Queue {
 	if minLen <= 0 {
 		minLen = 1
 	}
 	return &Queue{
+		stats:        stats,
 		mx:           &sync.RWMutex{},
 		minLen:       minLen,
 		maxLen:       maxLen,
@@ -78,12 +81,13 @@ func (q *Queue) Pop() (string, error) {
 	item_ := q.pop()
 	for item_.Expired() {
 		q.factory.removeUid(item_.uid)
+		q.stats.Drop(item_.TimeInQueue())
 		if q.len() == 0 {
 			return "", ErrQueueEmpty
 		}
 		item_ = q.pop()
 	}
-
+	q.stats.Process(item_.TimeInQueue())
 	return item_.value, nil
 }
 
@@ -104,9 +108,15 @@ func (q *Queue) Drain() []string {
 		return []string{}
 	}
 
-	values := make([]string, q.len())
-	for i, item_ := range q.items {
-		values[i] = item_.value
+	values := make([]string, 0, len(q.items))
+	for _, item_ := range q.items {
+		item_.dequeue()
+		if item_.Expired() {
+			q.stats.Drop(item_.TimeInQueue())
+		} else {
+			q.stats.Process(item_.TimeInQueue())
+			values = append(values, item_.value)
+		}
 	}
 	q.clear()
 	return values
@@ -122,6 +132,7 @@ func (q *Queue) resize() {
 
 func (q *Queue) pop() item {
 	item_ := q.items[0]
+	item_.dequeue()
 	if q.len() != 0 {
 		q.items = q.items[1:]
 		q.resize()
