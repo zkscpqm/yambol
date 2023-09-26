@@ -2,6 +2,7 @@ package queue
 
 import (
 	"sync"
+	"time"
 )
 
 type Queue struct {
@@ -13,7 +14,7 @@ type Queue struct {
 	factory      itemFactory
 }
 
-func New(minLen, maxLen, maxSizeBytes int) *Queue {
+func New(minLen, maxLen, maxSizeBytes int, defaultTTL time.Duration) *Queue {
 	if minLen <= 0 {
 		minLen = 1
 	}
@@ -23,7 +24,7 @@ func New(minLen, maxLen, maxSizeBytes int) *Queue {
 		maxLen:       maxLen,
 		maxSizeBytes: maxSizeBytes,
 		items:        make([]item, 0, minLen),
-		factory:      newItemFactory(),
+		factory:      newItemFactory(defaultTTL),
 	}
 }
 
@@ -47,7 +48,7 @@ func (q *Queue) PushBatch(values ...string) ([]int, error) {
 
 	uids := make([]int, len(values))
 	for i, value := range values {
-		item_ := q.factory.newItem(value)
+		item_ := q.factory.newDefaultItem(value)
 		q.items = append(q.items, item_)
 		uids[i] = item_.uid
 	}
@@ -62,7 +63,7 @@ func (q *Queue) Push(value string) (int, error) {
 		return -1, ErrQueueFull
 	}
 
-	item_ := q.factory.newItem(value)
+	item_ := q.factory.newDefaultItem(value)
 	q.items = append(q.items, item_)
 	return item_.uid, nil
 }
@@ -74,9 +75,15 @@ func (q *Queue) Pop() (string, error) {
 	if q.len() == 0 {
 		return "", ErrQueueEmpty
 	}
-
 	item_ := q.pop()
-	q.factory.removeUid(item_.uid)
+	for item_.Expired() {
+		q.factory.removeUid(item_.uid)
+		if q.len() == 0 {
+			return "", ErrQueueEmpty
+		}
+		item_ = q.pop()
+	}
+
 	return item_.value, nil
 }
 
@@ -105,18 +112,20 @@ func (q *Queue) Drain() []string {
 	return values
 }
 
-func (q *Queue) pop() item {
-	item_ := q.items[0]
-	q.items = q.items[1:]
-
-	// Shrink the underlying array when it is less than half full
-	// chatgpt optimization magic idk but it works
+func (q *Queue) resize() {
 	if cap(q.items) > q.minLen && len(q.items) < cap(q.items)/2 {
 		newItems := make([]item, len(q.items), len(q.items)*2)
 		copy(newItems, q.items)
 		q.items = newItems
 	}
+}
 
+func (q *Queue) pop() item {
+	item_ := q.items[0]
+	if q.len() != 0 {
+		q.items = q.items[1:]
+		q.resize()
+	}
 	return item_
 }
 

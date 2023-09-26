@@ -11,10 +11,12 @@ type Configuration struct {
 		DefaultMinLength    int `json:"default_min_length"`
 		DefaultMaxLength    int `json:"default_max_length"`
 		DefaultMaxSizeBytes int `json:"default_max_size_bytes"`
+		DefaultTTL          int `json:"default_ttl"`
 		Queues              map[string]struct {
 			MinLength    int `json:"min_length"`
 			MaxLength    int `json:"max_length"`
 			MaxSizeBytes int `json:"max_size_bytes"`
+			TTL          int `json:"ttl"`
 		} `json:"queues"`
 	} `json:"broker"`
 }

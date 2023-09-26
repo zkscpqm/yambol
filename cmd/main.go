@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"yambol/config"
 	"yambol/pkg/broker"
+	"yambol/pkg/util"
 )
 
 func testingBroker(b *broker.MessageBroker) {
 	fmt.Println("Testing broker...")
-	err := b.Publish(`{'message': 'Hello, World!'}`, "default", "noexistent")
+	err := b.Publish(`{'message': 'Hello, World!'}`, "default", "test", "noexistent")
 	if err != nil {
 		fmt.Println("broker publish error", err)
 	}
@@ -17,6 +18,7 @@ func testingBroker(b *broker.MessageBroker) {
 		fmt.Println("broker receive error", err)
 	}
 	fmt.Println("message received:", msg)
+
 }
 
 func main() {
@@ -30,10 +32,11 @@ func main() {
 	broker.SetDefaultMinLen(cfg.Broker.DefaultMinLength)
 	broker.SetDefaultMaxLen(cfg.Broker.DefaultMaxLength)
 	broker.SetDefaultMaxSizeBytes(cfg.Broker.DefaultMaxSizeBytes)
+	broker.SetDefaultTTL(util.Seconds(cfg.Broker.DefaultTTL))
 
 	b := broker.NewMessageBroker()
 	for qName, qCfg := range cfg.Broker.Queues {
-		b.AddQueue(qName, qCfg.MinLength, qCfg.MaxLength, qCfg.MaxSizeBytes)
+		b.AddQueue(qName, qCfg.MinLength, qCfg.MaxLength, qCfg.MaxSizeBytes, util.Seconds(qCfg.TTL))
 	}
 	testingBroker(b)
 

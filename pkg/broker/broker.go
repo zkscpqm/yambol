@@ -2,6 +2,7 @@ package broker
 
 import (
 	"fmt"
+	"time"
 	"yambol/pkg/queue"
 )
 
@@ -9,6 +10,7 @@ var (
 	defaultMinLen       = 100
 	defaultMaxLen       = 1 << 31
 	defaultMaxSizeBytes = 1024 * 1024 * 1024 // 1GB
+	defaultTTL          = time.Minute
 )
 
 func setLTE0(value, default_ int, target *int) {
@@ -30,6 +32,13 @@ func SetDefaultMaxSizeBytes(value int) {
 	setLTE0(value, 1024*1024*1024, &defaultMaxSizeBytes)
 }
 
+func SetDefaultTTL(value time.Duration) {
+	if value < 0 {
+		value = 0
+	}
+	defaultTTL = time.Minute * value
+}
+
 func GetDefaultMinLen() int {
 	return defaultMinLen
 }
@@ -40,6 +49,10 @@ func GetDefaultMaxLen() int {
 
 func GetDefaultMaxSizeBytes() int {
 	return defaultMaxSizeBytes
+}
+
+func GetDefaultTTL() time.Duration {
+	return defaultTTL
 }
 
 func determineMinLen(value int) int {
@@ -63,6 +76,13 @@ func determineMaxSizeBytes(value int) int {
 	return defaultMaxSizeBytes
 }
 
+func determineTTL(value time.Duration) time.Duration {
+	if value > 0 {
+		return value
+	}
+	return defaultTTL
+}
+
 type QueueOptions struct {
 	Name         string
 	MinLen       int
@@ -83,14 +103,15 @@ func NewMessageBroker() *MessageBroker {
 }
 
 func (mb *MessageBroker) AddDefaultQueue(queueName string) {
-	mb.AddQueue(queueName, GetDefaultMinLen(), GetDefaultMaxLen(), GetDefaultMaxSizeBytes())
+	mb.AddQueue(queueName, GetDefaultMinLen(), GetDefaultMaxLen(), GetDefaultMaxSizeBytes(), GetDefaultTTL())
 }
 
-func (mb *MessageBroker) AddQueue(queueName string, minLen, maxLen, maxSizeBytes int) {
+func (mb *MessageBroker) AddQueue(queueName string, minLen, maxLen, maxSizeBytes int, ttl time.Duration) {
 	mb.queues[queueName] = queue.New(
 		determineMinLen(minLen),
 		determineMaxLen(maxLen),
 		determineMaxSizeBytes(maxSizeBytes),
+		determineTTL(ttl),
 	)
 	mb.unsent[queueName] = make([]string, 0)
 }

@@ -29,14 +29,16 @@ func (i *item) Expired() bool {
 }
 
 type itemFactory struct {
-	uidMap map[int]struct{}
-	mx     *sync.RWMutex
+	uidMap     map[int]struct{}
+	defaultTTL time.Duration
+	mx         *sync.RWMutex
 }
 
-func newItemFactory() itemFactory {
+func newItemFactory(defaultTTL time.Duration) itemFactory {
 	return itemFactory{
-		uidMap: make(map[int]struct{}),
-		mx:     &sync.RWMutex{},
+		uidMap:     make(map[int]struct{}),
+		mx:         &sync.RWMutex{},
+		defaultTTL: defaultTTL,
 	}
 }
 
@@ -64,10 +66,15 @@ func (f *itemFactory) clear() {
 	f.uidMap = make(map[int]struct{})
 }
 
-func (f *itemFactory) newItem(val string) item {
+func (f *itemFactory) newItem(val string, ttl time.Duration) item {
 	return item{
 		uid:   f.generateUid(),
 		value: val,
 		ts:    time.Now(),
+		ttl:   ttl,
 	}
+}
+
+func (f *itemFactory) newDefaultItem(val string) item {
+	return f.newItem(val, f.defaultTTL)
 }
