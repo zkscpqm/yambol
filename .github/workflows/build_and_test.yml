@@ -37,6 +37,9 @@ jobs:
         with:
           go-version: '1.20'
 
+      - name: Install mingw-w64
+        run: sudo apt-get install -y mingw-w64
+
       - name: Build and Archive binaries with config
         env:
           CGO_ENABLED: 1
@@ -46,7 +49,7 @@ jobs:
           tar -czvf ./build/yambol-linux-64bit.tar.gz -C ./build yambol-linux-64bit -C .. config.json
           
           # Windows 64-bit
-          GOARCH=amd64 GOOS=windows go build -o ./build/yambol-windows-64bit.exe ./cmd/main.go
+          GOARCH=amd64 GOOS=windows CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o ./build/yambol-windows-64bit.exe ./cmd/main.go
           zip ./build/yambol-windows-64bit.zip -j ./build/yambol-windows-64bit.exe config.json
 
       - name: Get the version
