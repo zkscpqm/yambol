@@ -12,6 +12,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var forbiddenQueueNames = []string{
+	"broadcast",
+}
+
 type yambolHandlerFunc = func(w http.ResponseWriter, r *http.Request) Response
 
 type YambolHTTPServer struct {
@@ -101,7 +105,7 @@ func (s *YambolHTTPServer) respond(w http.ResponseWriter, response Response) {
 	}
 }
 
-func (s *YambolHTTPServer) resolveHTTPMethodTarget(r *http.Request, targets map[string]yambolHandlerFunc) (yambolHandlerFunc, error) {
+func resolveHTTPMethodTarget(r *http.Request, targets map[string]yambolHandlerFunc) (yambolHandlerFunc, error) {
 	allowedMethods := make([]string, 0, len(targets))
 	for k := range targets {
 		allowedMethods = append(allowedMethods, k)
@@ -114,9 +118,28 @@ func (s *YambolHTTPServer) resolveHTTPMethodTarget(r *http.Request, targets map[
 
 }
 
+func normalizeQueueName(name string) string {
+	return strings.ToLower(
+		strings.TrimPrefix(
+			strings.TrimSuffix(
+				name,
+				"/",
+			),
+			"/",
+		),
+	)
+}
+
 func isValidPath(name string) bool {
+	name = normalizeQueueName(name)
 	if strings.TrimSpace(name) == "" {
 		return false
+	}
+
+	for _, forbiddenName := range forbiddenQueueNames {
+		if name == forbiddenName {
+			return false
+		}
 	}
 
 	re := regexp.MustCompile(`^[\w-]+$`)

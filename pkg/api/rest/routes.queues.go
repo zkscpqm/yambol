@@ -11,7 +11,7 @@ import (
 
 func (s *YambolHTTPServer) queues() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) Response {
-		target, err := s.resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
+		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
 			"GET":  s.getQueues(),
 			"POST": s.postQueues(),
 		})
@@ -64,7 +64,7 @@ func (s *YambolHTTPServer) postQueues() yambolHandlerFunc {
 
 func (s *YambolHTTPServer) queue() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) Response {
-		target, err := s.resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
+		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
 			"GET":  s.getQueue(),
 			"POST": s.postQueue(),
 		})
