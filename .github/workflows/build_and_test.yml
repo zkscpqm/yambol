@@ -1,0 +1,74 @@
+name: Go Test and Release
+
+on:
+  pull_request:
+    branches:
+      - 'master' # Run on PRs to master
+  push:
+    branches:
+      - 'master' # Run on pushes to master
+
+jobs:
+  run-unit-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Run Unit Tests
+        run: go test -v ./...
+
+  build-and-release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Install mingw-w64
+        run: sudo apt-get install -y mingw-w64
+
+      - name: Build and Archive binaries with config
+        env:
+          CGO_ENABLED: 1
+        run: |
+          # Linux 64-bit
+          GOARCH=amd64 GOOS=linux go build -o ./build/yambol-linux-64bit ./cmd/main.go
+          tar -czvf ./build/yambol-linux-64bit.tar.gz -C ./build yambol-linux-64bit -C .. config.json
+          
+          # Windows 64-bit
+          GOARCH=amd64 GOOS=windows CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o ./build/yambol-windows-64bit.exe ./cmd/main.go
+          zip ./build/yambol-windows-64bit.zip -j ./build/yambol-windows-64bit.exe config.json
+
+      - name: Get the version
+        id: get_version
+        run: echo "::set-output name=version::$(cat VERSION)"
+
+      - name: Fetch the latest release
+        id: latest_release
+        run: echo "::set-output name=version::$(gh release view --json version -q '.version' || echo '0.0.0')"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compare and Release
+        if: steps.get_version.outputs.version != steps.latest_release.outputs.version
+        run: |
+          gh release create ${{ steps.get_version.outputs.version }} \
+            ./build/*.tar.gz \
+            ./build/*.zip \
+            --title "Release ${{ steps.get_version.outputs.version }}" \
+            --notes "Release notes for ${{ steps.get_version.outputs.version }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
