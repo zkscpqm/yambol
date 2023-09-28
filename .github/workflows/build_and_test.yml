@@ -38,6 +38,8 @@ jobs:
           go-version: '1.20'
 
       - name: Build and Archive binaries with config
+        env:
+          CGO_ENABLED: 1
         run: |
           # Linux 32-bit
           GOARCH=386 GOOS=linux go build -o ./build/myapp-linux-32bit ./cmd/main.go
