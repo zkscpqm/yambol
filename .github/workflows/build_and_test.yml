@@ -37,8 +37,23 @@ jobs:
         with:
           go-version: '1.20'
 
-      - name: Build
-        run: go build -v ./cmd/main.go
+      - name: Build and Archive binaries with config
+        run: |
+          # Linux 32-bit
+          GOARCH=386 GOOS=linux go build -o ./build/myapp-linux-32bit ./cmd/main.go
+          tar -czvf ./build/myapp-linux-32bit.tar.gz -C ./build myapp-linux-32bit config.json
+
+          # Linux 64-bit
+          GOARCH=amd64 GOOS=linux go build -o ./build/myapp-linux-64bit ./cmd/main.go
+          tar -czvf ./build/myapp-linux-64bit.tar.gz -C ./build myapp-linux-64bit config.json
+
+          # Windows 32-bit
+          GOARCH=386 GOOS=windows go build -o ./build/myapp-windows-32bit.exe ./cmd/main.go
+          zip ./build/myapp-windows-32bit.zip -j ./build/myapp-windows-32bit.exe config.json
+
+          # Windows 64-bit
+          GOARCH=amd64 GOOS=windows go build -o ./build/myapp-windows-64bit.exe ./cmd/main.go
+          zip ./build/myapp-windows-64bit.zip -j ./build/myapp-windows-64bit.exe config.json
 
       - name: Get the version
         id: get_version
@@ -46,7 +61,7 @@ jobs:
 
       - name: Fetch the latest release
         id: latest_release
-        run: echo "::set-output name=version::$(gh release view --json version -q '.version')"
+        run: echo "::set-output name=version::$(gh release view --json version -q '.version' || echo '0.0.0')"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -54,6 +69,8 @@ jobs:
         if: steps.get_version.outputs.version != steps.latest_release.outputs.version
         run: |
           gh release create ${{ steps.get_version.outputs.version }} \
+            ./build/*.tar.gz \
+            ./build/*.zip \
             --title "Release ${{ steps.get_version.outputs.version }}" \
             --notes "Release notes for ${{ steps.get_version.outputs.version }}"
         env:
