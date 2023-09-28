@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+
 	"yambol/config"
+	"yambol/pkg/api/rest"
 	"yambol/pkg/broker"
 	"yambol/pkg/util"
 )
@@ -38,6 +40,10 @@ func main() {
 	for qName, qCfg := range cfg.Broker.Queues {
 		b.AddQueue(qName, qCfg.MinLength, qCfg.MaxLength, qCfg.MaxSizeBytes, util.Seconds(qCfg.TTL))
 	}
-	testingBroker(b)
+	server := rest.NewYambolHTTPServer(b, nil)
+	if err = server.ServeHTTP(8080); err != nil {
+		fmt.Println("http server error: ", err)
+	}
+	//testingBroker(b)
 
 }

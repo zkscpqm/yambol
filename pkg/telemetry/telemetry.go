@@ -78,3 +78,11 @@ func (c *Collector) AddQueue(queue string) *QueueStats {
 	}
 	return qs
 }
+
+func (c *Collector) Stats() map[string]QueueStats {
+	s := make(map[string]QueueStats)
+	for queueName, q := range c.qStats {
+		s[queueName] = *q
+	}
+	return s
+}

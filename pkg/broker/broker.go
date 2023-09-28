@@ -158,3 +158,19 @@ func (mb *MessageBroker) Receive(queueName string) (string, error) {
 		return q.Pop()
 	}
 }
+
+func (mb *MessageBroker) Stats() map[string]telemetry.QueueStats {
+	return mb.stats.Stats()
+}
+
+func (mb *MessageBroker) QueueExists(queueName string) bool {
+	_, ok := mb.queues[queueName]
+	return ok
+}
+
+func (mb *MessageBroker) Queues() (queueNames []string) {
+	for queueName := range mb.queues {
+		queueNames = append(queueNames, queueName)
+	}
+	return
+}
