@@ -41,17 +41,9 @@ jobs:
         env:
           CGO_ENABLED: 1
         run: |
-          # Linux 32-bit
-          GOARCH=386 GOOS=linux go build -o ./build/myapp-linux-32bit ./cmd/main.go
-          tar -czvf ./build/myapp-linux-32bit.tar.gz -C ./build myapp-linux-32bit config.json
-
           # Linux 64-bit
           GOARCH=amd64 GOOS=linux go build -o ./build/myapp-linux-64bit ./cmd/main.go
           tar -czvf ./build/myapp-linux-64bit.tar.gz -C ./build myapp-linux-64bit config.json
-
-          # Windows 32-bit
-          GOARCH=386 GOOS=windows go build -o ./build/myapp-windows-32bit.exe ./cmd/main.go
-          zip ./build/myapp-windows-32bit.zip -j ./build/myapp-windows-32bit.exe config.json
 
           # Windows 64-bit
           GOARCH=amd64 GOOS=windows go build -o ./build/myapp-windows-64bit.exe ./cmd/main.go
