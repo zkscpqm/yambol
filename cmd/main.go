@@ -9,20 +9,6 @@ import (
 	"yambol/pkg/util"
 )
 
-func testingBroker(b *broker.MessageBroker) {
-	fmt.Println("Testing broker...")
-	err := b.Publish(`{'message': 'Hello, World!'}`, "default", "test", "noexistent")
-	if err != nil {
-		fmt.Println("broker publish error", err)
-	}
-	msg, err := b.Receive("default")
-	if err != nil {
-		fmt.Println("broker receive error", err)
-	}
-	fmt.Println("message received:", msg)
-
-}
-
 func main() {
 	fmt.Println("Running Yambol...")
 	cfg, err := config.FromFile("config.json")
