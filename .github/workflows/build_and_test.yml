@@ -1,19 +1,16 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
-name: Go
+name: Go Test and Release
 
 on:
-  push:
-    branches-ignore:
-      - 'master' # run on push to any branch except master
   pull_request:
     branches:
-      - 'master' # run on PRs to master
+      - 'master' # Run on PRs to master
+  push:
+    branches:
+      - 'master' # Run on pushes to master
 
 jobs:
-
-  build:
+  run-unit-tests:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -23,8 +20,40 @@ jobs:
         with:
           go-version: '1.20'
 
+      - name: Run Unit Tests
+        run: go test -v ./...
+
+  build-and-release:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Get the version
+        id: get_version
+        run: echo "::set-output name=version::$(cat VERSION)"
+
+      - name: Fetch the latest release
+        id: latest_release
+        run: echo "::set-output name=version::$(gh release view --json version -q '.version')"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build
+        if: steps.get_version.outputs.version != steps.latest_release.outputs.version
         run: go build -v ./cmd/main.go
 
-      - name: Test
-        run: go test -v ./...
+      - name: Compare and Release
+        if: steps.get_version.outputs.version != steps.latest_release.outputs.version
+        run: |
+          gh release create ${{ steps.get_version.outputs.version }} \
+            --title "Release ${{ steps.get_version.outputs.version }}" \
+            --notes "Release notes for ${{ steps.get_version.outputs.version }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
