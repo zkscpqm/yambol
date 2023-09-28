@@ -42,12 +42,12 @@ jobs:
           CGO_ENABLED: 1
         run: |
           # Linux 64-bit
-          GOARCH=amd64 GOOS=linux go build -o ./build/myapp-linux-64bit ./cmd/main.go
-          tar -czvf ./build/myapp-linux-64bit.tar.gz -C ./build myapp-linux-64bit -C .. config.json
+          GOARCH=amd64 GOOS=linux go build -o ./build/yambol-linux-64bit ./cmd/main.go
+          tar -czvf ./build/yambol-linux-64bit.tar.gz -C ./build yambol-linux-64bit -C .. config.json
           
           # Windows 64-bit
-          GOARCH=amd64 GOOS=windows go build -o ./build/myapp-windows-64bit.exe ./cmd/main.go
-          zip ./build/myapp-windows-64bit.zip -j ./build/myapp-windows-64bit.exe config.json
+          GOARCH=amd64 GOOS=windows go build -o ./build/yambol-windows-64bit.exe ./cmd/main.go
+          zip ./build/yambol-windows-64bit.zip -j ./build/yambol-windows-64bit.exe config.json
 
       - name: Get the version
         id: get_version
