@@ -26,6 +26,8 @@ jobs:
   build-and-release:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -34,6 +36,9 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.20'
+
+      - name: Build
+        run: go build -v ./cmd/main.go
 
       - name: Get the version
         id: get_version
@@ -44,10 +49,6 @@ jobs:
         run: echo "::set-output name=version::$(gh release view --json version -q '.version')"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build
-        if: steps.get_version.outputs.version != steps.latest_release.outputs.version
-        run: go build -v ./cmd/main.go
 
       - name: Compare and Release
         if: steps.get_version.outputs.version != steps.latest_release.outputs.version
