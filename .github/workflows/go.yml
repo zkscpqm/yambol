@@ -1,0 +1,43 @@
+name: Go Test Workflow
+
+on:
+  push:
+    branches-ignore:
+      - 'master' # run on push to any branch except master
+  pull_request:
+    branches:
+      - 'master' # run on PRs to master
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: windows-2019
+          - os: windows-2022
+            go-version: 1.19
+          - os: ubuntu-latest
+            container: debian
+          - os: ubuntu-latest
+            container: centos
+          - os: ubuntu-latest
+            container: fedora
+          - os: ubuntu-latest
+            container: opensuse/leap
+
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        if: runner.os == 'Windows' # Setup Go only for windows runners
+        with:
+          go-version: ${{ matrix.go-version }}
+      
+      - name: Test
+        run: go test ./...
