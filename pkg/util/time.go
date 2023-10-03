@@ -1,6 +1,8 @@
 package util
 
-import "time"
+import (
+	"time"
+)
 
 func Seconds(n int) time.Duration {
 	return time.Duration(n) * time.Second
@@ -8,4 +10,8 @@ func Seconds(n int) time.Duration {
 
 func LittleLongerThan(d time.Duration) time.Duration {
 	return d + time.Microsecond*50
+}
+
+func DurationAlmostEqual(expected, actual time.Duration, maxOffset time.Duration) bool {
+	return (expected - actual).Abs() <= maxOffset
 }

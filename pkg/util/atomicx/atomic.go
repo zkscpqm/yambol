@@ -2,16 +2,16 @@ package atomicx
 
 import "sync/atomic"
 
-func MaxSwap64(tgt *uint64, val uint64) {
+func MaxSwap64(tgt *int64, val int64) {
 	if tgt == nil {
 		return
 	}
 	for {
-		old := atomic.LoadUint64(tgt)
+		old := atomic.LoadInt64(tgt)
 		if val <= old {
 			break
 		}
-		if atomic.CompareAndSwapUint64(tgt, old, val) {
+		if atomic.CompareAndSwapInt64(tgt, old, val) {
 			break // The value was successfully swapped.
 		}
 	}
