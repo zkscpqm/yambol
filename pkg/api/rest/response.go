@@ -2,6 +2,7 @@ package rest
 
 import (
 	"encoding/json"
+	"net/http"
 	"yambol/pkg/telemetry"
 )
 
@@ -23,14 +24,24 @@ func (r ErrorResponse) JsonMarshalIndent() ([]byte, error) {
 	return json.MarshalIndent(r, "", "    ")
 }
 
-type YambolStatsResponse struct {
+type YambolHomeResponse struct {
 	statusCode int
-	Uptime     string                          `json:"uptime"`
-	QueueStats map[string]telemetry.QueueStats `json:"queue_stats"`
+	Uptime     string `json:"uptime"`
+	Version    string `json:"version"`
 }
 
-func (r YambolStatsResponse) StatusCode() int {
+func (r YambolHomeResponse) StatusCode() int {
 	return r.statusCode
+}
+
+func (r YambolHomeResponse) JsonMarshalIndent() ([]byte, error) {
+	return json.MarshalIndent(r, "", "    ")
+}
+
+type YambolStatsResponse map[string]telemetry.QueueStats
+
+func (r YambolStatsResponse) StatusCode() int {
+	return http.StatusOK
 }
 
 func (r YambolStatsResponse) JsonMarshalIndent() ([]byte, error) {

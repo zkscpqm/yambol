@@ -52,7 +52,7 @@ func TestBrokerBasics(t *testing.T) {
 
 	setDefaults()
 
-	mb := NewMessageBroker()
+	mb := New()
 	assert.Empty(t, mb.queues, "broker should have no queues by default")
 	err := mb.RemoveQueue("test")
 	assert.Error(t, err, "removed non existent queue")
@@ -80,7 +80,7 @@ func TestBrokerPublishConsume(t *testing.T) {
 
 	setDefaults()
 
-	mb := NewMessageBroker()
+	mb := New()
 
 	_, err := mb.Consume("test")
 	assert.Error(t, err, "expected to fail to consume from non existent queue")
@@ -117,7 +117,7 @@ func TestBrokerBroadcast(t *testing.T) {
 
 	setDefaults()
 
-	mb := NewMessageBroker()
+	mb := New()
 
 	err := mb.AddDefaultQueue("test1")
 	assert.NoError(t, err, "failed to add test1 queue")

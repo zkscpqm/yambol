@@ -29,24 +29,42 @@ func NewYambolHTTPServer(b *broker.MessageBroker, defaultHeaders map[string]stri
 	if defaultHeaders == nil {
 		defaultHeaders = make(map[string]string)
 	}
+	rtr := mux.NewRouter()
+	rtr.Use(LoggingMiddleware)
 	return &YambolHTTPServer{
-		router:         mux.NewRouter(),
+		router:         rtr,
 		b:              b,
 		defaultHeaders: defaultHeaders,
 		startedAt:      time.Now(),
 	}
 }
 
-func (s *YambolHTTPServer) ServeHTTP(port int) error {
+func (s *YambolHTTPServer) ListenAndServeInsecure(port int) error {
+	return s.ListenAndServe(port, "", "")
+}
+
+func (s *YambolHTTPServer) ListenAndServe(port int, certFile, keyFile string) error {
 	s.routes()
-	http.Handle("/", s.router)
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	addr := fmt.Sprintf(":%d", port)
+	if certFile == "" || keyFile == "" {
+		fmt.Printf("Starting Yambol with http (insecure) at [%d]\n", port)
+
+		return http.ListenAndServe(addr, s.router)
+	}
+	fmt.Printf("Starting Yambol with https (secure) at [%d]\n", port)
+	return http.ListenAndServeTLS(addr, certFile, keyFile, s.router)
 }
 
 func (s *YambolHTTPServer) routes() {
 	s.route(
 		"/",
 		s.home(),
+		debugPrintHook(),
+	).Methods("GET")
+
+	s.route(
+		"/stats",
+		s.stats(),
 		debugPrintHook(),
 	).Methods("GET")
 
