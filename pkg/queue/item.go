@@ -3,6 +3,7 @@ package queue
 import (
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,18 +16,21 @@ type item struct {
 	value string
 	ts    time.Time
 	ttl   time.Duration
-	tiq   time.Duration
+	tiq   *time.Duration
 }
 
 func (i *item) dequeue() {
-	i.tiq = time.Since(i.ts)
+	i.tiq = new(time.Duration)
+	atomic.StoreInt64((*int64)(i.tiq), int64(time.Since(i.ts)))
+	//i.tiq = time.Since(i.ts)
 }
 
 func (i *item) TimeInQueue() time.Duration {
-	if i.tiq == 0 {
-		return time.Since(i.ts)
+	if i.tiq == nil {
+		tiq := time.Since(i.ts)
+		return tiq
 	}
-	return i.tiq
+	return *i.tiq
 }
 
 func (i *item) String() string {

@@ -58,6 +58,22 @@ func (q *Queue) PushBatch(values ...string) ([]int, error) {
 	return uids, nil
 }
 
+func (q *Queue) PushWithTTL(value string, ttl *time.Duration) (int, error) {
+	if ttl == nil {
+		return q.Push(value)
+	}
+	q.mx.Lock()
+	defer q.mx.Unlock()
+
+	if q.len() >= q.maxLen {
+		return 0, ErrQueueFull
+	}
+
+	item_ := q.factory.newItem(value, *ttl)
+	q.items = append(q.items, item_)
+	return item_.uid, nil
+}
+
 func (q *Queue) Push(value string) (int, error) {
 	q.mx.Lock()
 	defer q.mx.Unlock()

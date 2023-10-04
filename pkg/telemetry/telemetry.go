@@ -8,33 +8,36 @@ import (
 )
 
 type QueueStats struct {
-	Processed        uint64 `json:"sent"`
-	Dropped          uint64 `json:"dropped"`
-	TotalTimeInQueue uint64 `json:"total_time_in_queue"`
-	MaxTimeInQueue   uint64 `json:"max_time_in_queue"`
+	Processed        int64 `json:"processed"`
+	Dropped          int64 `json:"dropped"`
+	TotalTimeInQueue int64 `json:"total_time_in_queue_ms"`
+	MaxTimeInQueue   int64 `json:"max_time_in_queue_ms"`
 }
 
-func (qs *QueueStats) allMessages() uint64 {
+func (qs *QueueStats) allMessages() int64 {
 	return qs.Processed + qs.Dropped
 }
 
 func (qs *QueueStats) Process(timeInQueue time.Duration) {
-	atomic.AddUint64(&qs.Processed, 1)
+	atomic.AddInt64(&qs.Processed, 1)
 	qs.update(timeInQueue)
 }
 
 func (qs *QueueStats) Drop(timeInQueue time.Duration) {
-	atomic.AddUint64(&qs.Dropped, 1)
+	atomic.AddInt64(&qs.Dropped, 1)
 	qs.update(timeInQueue)
 }
 
 func (qs *QueueStats) update(timeInQueue time.Duration) {
-	tiq := uint64(timeInQueue.Milliseconds())
+	tiq := timeInQueue.Milliseconds()
 	atomicx.MaxSwap64(&qs.MaxTimeInQueue, tiq)
-	atomic.AddUint64(&qs.TotalTimeInQueue, tiq)
+	atomic.AddInt64(&qs.TotalTimeInQueue, tiq)
 }
 
-func (qs *QueueStats) AverageTimeInQueue() uint64 {
+func (qs *QueueStats) averageTimeInQueue() int64 {
+	if qs.allMessages() == 0 {
+		return 0
+	}
 	return qs.TotalTimeInQueue / qs.allMessages()
 }
 
@@ -43,13 +46,13 @@ func (qs *QueueStats) MarshalJSON() ([]byte, error) {
 	// so that our MarshalJSON won't be called again.
 	type Alias QueueStats
 
-	// Define a new struct to hold the AverageTimeInQueue value
+	// Define a new struct to hold the averageTimeInQueue value
 	aux := struct {
 		Alias
-		AverageTimeInQueue uint64 `json:"average_time_in_queue"`
+		AverageTimeInQueue int64 `json:"average_time_in_queue_ms"`
 	}{
 		Alias:              (Alias)(*qs),
-		AverageTimeInQueue: qs.AverageTimeInQueue(),
+		AverageTimeInQueue: qs.averageTimeInQueue(),
 	}
 
 	// Marshal the aux struct into JSON
@@ -73,7 +76,7 @@ func NewCollector(queues ...string) *Collector {
 func (c *Collector) AddQueue(queue string) *QueueStats {
 	qs, ok := c.qStats[queue]
 	if !ok {
-		qs = &QueueStats{}
+		qs = new(QueueStats)
 		c.qStats[queue] = qs
 	}
 	return qs

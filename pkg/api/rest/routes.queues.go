@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"yambol/pkg/broker"
 
 	"yambol/pkg/queue"
 )
@@ -52,7 +53,14 @@ func (s *YambolHTTPServer) postQueues() yambolHandlerFunc {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("the queue name `%s` is not valid", qInfo.Name))
 		}
 
-		s.b.AddQueue(qInfo.Name, qInfo.MinLength, qInfo.MaxLength, qInfo.MaxSizeBytes, qInfo.TTLSeconds())
+		if err := s.b.AddQueue(qInfo.Name, broker.QueueOptions{
+			MinLen:       qInfo.MinLength,
+			MaxLen:       qInfo.MaxLength,
+			MaxSizeBytes: qInfo.MaxSizeBytes,
+			DefaultTTL:   qInfo.TTLSeconds(),
+		}); err != nil {
+			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to create queue `%s`: %v", qInfo.Name, err))
+		}
 
 		s.addQueueRoute(qInfo.Name, debugPrintHook())
 
@@ -83,7 +91,7 @@ func (s *YambolHTTPServer) getQueue() yambolHandlerFunc {
 			return s.error(w, http.StatusNotFound, fmt.Errorf("queue `%s` does not exist", qName))
 		}
 
-		message, err := s.b.Receive(qName)
+		message, err := s.b.Consume(qName)
 
 		if err != nil && !errors.Is(err, queue.ErrQueueEmpty) {
 			return s.error(w, http.StatusInternalServerError, err)

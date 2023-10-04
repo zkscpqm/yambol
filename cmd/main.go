@@ -24,7 +24,15 @@ func main() {
 
 	b := broker.NewMessageBroker()
 	for qName, qCfg := range cfg.Broker.Queues {
-		b.AddQueue(qName, qCfg.MinLength, qCfg.MaxLength, qCfg.MaxSizeBytes, util.Seconds(qCfg.TTL))
+		if err = b.AddQueue(qName, broker.QueueOptions{
+			MinLen:       qCfg.MinLength,
+			MaxLen:       qCfg.MaxLength,
+			MaxSizeBytes: qCfg.MaxSizeBytes,
+			DefaultTTL:   util.Seconds(qCfg.TTL),
+		}); err != nil {
+			fmt.Println("failed to add queue: ", err)
+			return
+		}
 	}
 	server := rest.NewYambolHTTPServer(b, nil)
 	if err = server.ServeHTTP(8080); err != nil {

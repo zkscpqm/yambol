@@ -7,90 +7,6 @@ import (
 	"yambol/pkg/telemetry"
 )
 
-var (
-	defaultMinLen       = 100
-	defaultMaxLen       = 1 << 31
-	defaultMaxSizeBytes = 1024 * 1024 * 1024 // 1GB
-	defaultTTL          = time.Minute
-)
-
-func setLTE0(value, default_ int, target *int) {
-	if value <= 0 {
-		value = default_
-	}
-	*target = value
-}
-
-func SetDefaultMinLen(value int) {
-	setLTE0(value, 100, &defaultMinLen)
-}
-
-func SetDefaultMaxLen(value int) {
-	setLTE0(value, 1<<31, &defaultMaxLen)
-}
-
-func SetDefaultMaxSizeBytes(value int) {
-	setLTE0(value, 1024*1024*1024, &defaultMaxSizeBytes)
-}
-
-func SetDefaultTTL(value time.Duration) {
-	if value < 0 {
-		value = 0
-	}
-	defaultTTL = time.Minute * value
-}
-
-func GetDefaultMinLen() int {
-	return defaultMinLen
-}
-
-func GetDefaultMaxLen() int {
-	return defaultMaxLen
-}
-
-func GetDefaultMaxSizeBytes() int {
-	return defaultMaxSizeBytes
-}
-
-func GetDefaultTTL() time.Duration {
-	return defaultTTL
-}
-
-func determineMinLen(value int) int {
-	if value >= 0 {
-		return value
-	}
-	return defaultMinLen
-}
-
-func determineMaxLen(value int) int {
-	if value > 0 {
-		return value
-	}
-	return defaultMaxLen
-}
-
-func determineMaxSizeBytes(value int) int {
-	if value > 0 {
-		return value
-	}
-	return defaultMaxSizeBytes
-}
-
-func determineTTL(value time.Duration) time.Duration {
-	if value > 0 {
-		return value
-	}
-	return defaultTTL
-}
-
-type QueueOptions struct {
-	Name         string
-	MinLen       int
-	MaxLen       int
-	MaxSizeBytes int
-}
-
 type MessageBroker struct {
 	queues map[string]*queue.Queue
 	unsent map[string][]string
@@ -105,20 +21,34 @@ func NewMessageBroker() *MessageBroker {
 	}
 }
 
-func (mb *MessageBroker) AddDefaultQueue(queueName string) {
-	mb.AddQueue(queueName, GetDefaultMinLen(), GetDefaultMaxLen(), GetDefaultMaxSizeBytes(), GetDefaultTTL())
+func (mb *MessageBroker) AddDefaultQueue(queueName string) error {
+	return mb.AddQueue(queueName,
+		QueueOptions{
+			GetDefaultMinLen(),
+			GetDefaultMaxLen(),
+			GetDefaultMaxSizeBytes(),
+			GetDefaultTTL(),
+		},
+	)
 }
 
-func (mb *MessageBroker) AddQueue(queueName string, minLen, maxLen, maxSizeBytes int, ttl time.Duration) {
+func (mb *MessageBroker) AddQueue(queueName string, opts QueueOptions) error {
+	_, exists := mb.queues[queueName]
+	if exists {
+		return fmt.Errorf("queue %s already exists", queueName)
+	}
 	queueStats := mb.stats.AddQueue(queueName)
+
 	mb.queues[queueName] = queue.New(
-		determineMinLen(minLen),
-		determineMaxLen(maxLen),
-		determineMaxSizeBytes(maxSizeBytes),
-		determineTTL(ttl),
+		determineMinLen(opts.MinLen),
+		determineMaxLen(opts.MaxLen),
+		determineMaxSizeBytes(opts.MaxSizeBytes),
+		determineTTL(opts.DefaultTTL),
 		queueStats,
 	)
+	// TODO: What to do with unsent?
 	mb.unsent[queueName] = make([]string, 0)
+	return nil
 }
 
 func (mb *MessageBroker) formatMultipleErrors(base string, errors map[string]error) error {
@@ -133,7 +63,7 @@ func (mb *MessageBroker) formatMultipleErrors(base string, errors map[string]err
 	return nil
 }
 
-func (mb *MessageBroker) Publish(message string, queueNames ...string) error {
+func (mb *MessageBroker) PublishWithTTL(message string, ttl *time.Duration, queueNames ...string) error {
 	if len(queueNames) == 0 {
 		return fmt.Errorf("no queue name provided")
 	}
@@ -142,7 +72,7 @@ func (mb *MessageBroker) Publish(message string, queueNames ...string) error {
 		if q, ok := mb.queues[queueName]; !ok {
 			errors[queueName] = fmt.Errorf("queue '%s' not found", queueName)
 		} else {
-			if _, err := q.Push(message); err != nil {
+			if _, err := q.PushWithTTL(message, ttl); err != nil {
 				errors[queueName] = err
 				mb.unsent[queueName] = append(mb.unsent[queueName], message)
 			}
@@ -151,7 +81,19 @@ func (mb *MessageBroker) Publish(message string, queueNames ...string) error {
 	return mb.formatMultipleErrors("one or more queues failed to send message:", errors)
 }
 
-func (mb *MessageBroker) Receive(queueName string) (string, error) {
+func (mb *MessageBroker) Publish(message string, queueNames ...string) error {
+	return mb.PublishWithTTL(message, nil, queueNames...)
+}
+
+func (mb *MessageBroker) Broadcast(message string) error {
+	return mb.Publish(message, mb.Queues()...)
+}
+
+func (mb *MessageBroker) BroadcastWithTTL(message string, ttl *time.Duration) error {
+	return mb.PublishWithTTL(message, ttl, mb.Queues()...)
+}
+
+func (mb *MessageBroker) Consume(queueName string) (string, error) {
 	if q, ok := mb.queues[queueName]; !ok {
 		return "", fmt.Errorf("queue '%s' not found", queueName)
 	} else {
@@ -174,3 +116,16 @@ func (mb *MessageBroker) Queues() (queueNames []string) {
 	}
 	return
 }
+
+func (mb *MessageBroker) RemoveQueue(queueName string) error {
+	_, ok := mb.queues[queueName]
+	if !ok {
+		return fmt.Errorf("queue '%s' not found", queueName)
+	}
+	delete(mb.queues, queueName)
+	// TODO: Save the queue messages?
+	return nil
+
+}
+
+// Todo: Close() error -> dump queues to file or share to peers. Also, peers?

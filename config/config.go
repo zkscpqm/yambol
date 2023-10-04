@@ -6,6 +6,8 @@ import (
 	"os"
 )
 
+// Todo: Hot reloading?
+
 type Configuration struct {
 	Broker struct {
 		DefaultMinLength    int `json:"default_min_length"`
