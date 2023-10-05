@@ -9,6 +9,16 @@ import (
 // Todo: Hot reloading?
 
 type Configuration struct {
+	API struct {
+		HTTP struct {
+			Port int `json:"port"`
+		} `json:"http,omitempty"`
+		GRPC struct {
+			Port int `json:"port"`
+		} `json:"grpc,omitempty"`
+		Certificate string `json:"certificate,omitempty"`
+		Key         string `json:"key,omitempty"`
+	} `json:"api,omitempty"`
 	Broker struct {
 		DefaultMinLength    int `json:"default_min_length"`
 		DefaultMaxLength    int `json:"default_max_length"`

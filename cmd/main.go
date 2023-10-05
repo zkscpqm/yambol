@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"yambol/config"
 	"yambol/pkg/api/rest"
@@ -22,7 +23,7 @@ func main() {
 	broker.SetDefaultMaxSizeBytes(cfg.Broker.DefaultMaxSizeBytes)
 	broker.SetDefaultTTL(util.Seconds(cfg.Broker.DefaultTTL))
 
-	b := broker.NewMessageBroker()
+	b := broker.New()
 	for qName, qCfg := range cfg.Broker.Queues {
 		if err = b.AddQueue(qName, broker.QueueOptions{
 			MinLen:       qCfg.MinLength,
@@ -35,9 +36,20 @@ func main() {
 		}
 	}
 	server := rest.NewYambolHTTPServer(b, nil)
-	if err = server.ServeHTTP(8080); err != nil {
-		fmt.Println("http server error: ", err)
+	certPath, err := filepath.Abs(cfg.API.Certificate)
+	if err != nil {
+		fmt.Println("failed to get TLS certificate path: ", err)
+		return
 	}
-	//testingBroker(b)
-
+	keyPath, err := filepath.Abs(cfg.API.Key)
+	if err != nil {
+		fmt.Println("failed to get TLS key path: ", err)
+		return
+	}
+	if cfg.API.HTTP.Port > 0 {
+		if err = server.ListenAndServe(cfg.API.HTTP.Port, certPath, keyPath); err != nil {
+			fmt.Println("failed to start http server: ", err)
+			return
+		}
+	}
 }

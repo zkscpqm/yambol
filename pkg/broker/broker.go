@@ -13,7 +13,7 @@ type MessageBroker struct {
 	stats  *telemetry.Collector
 }
 
-func NewMessageBroker() *MessageBroker {
+func New() *MessageBroker {
 	return &MessageBroker{
 		queues: make(map[string]*queue.Queue),
 		unsent: make(map[string][]string),

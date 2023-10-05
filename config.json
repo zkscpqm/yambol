@@ -1,4 +1,11 @@
 {
+    "api": {
+        "certificate": ".tls/yambol.crt",
+        "key": ".tls/yambol.key",
+        "http": {
+            "port": 8443
+        }
+    },
     "broker": {
         "default_min_length": 12,
         "default_max_length": 2000,
