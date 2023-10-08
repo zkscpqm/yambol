@@ -35,7 +35,6 @@ func NewYambolHTTPServer(b *broker.MessageBroker, defaultHeaders map[string]stri
 		router:         rtr,
 		b:              b,
 		defaultHeaders: defaultHeaders,
-		startedAt:      time.Now(),
 	}
 }
 
@@ -46,6 +45,7 @@ func (s *YambolHTTPServer) ListenAndServeInsecure(port int) error {
 func (s *YambolHTTPServer) ListenAndServe(port int, certFile, keyFile string) error {
 	s.routes()
 	addr := fmt.Sprintf(":%d", port)
+	s.startedAt = time.Now()
 	if certFile == "" || keyFile == "" {
 		fmt.Printf("Starting Yambol with http (insecure) at [%d]\n", port)
 

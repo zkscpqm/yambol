@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package grpcMDB;
+
+option go_package = "github.com/zkscpqm/yambol/proto/grpcAPI;";
+
+message HomeRequest {}
+
+message HomeResponse {
+  string uptime = 1;
+  string version = 2;
+}
+
+service API {
+  rpc Home (HomeRequest) returns (HomeResponse) {}
+}

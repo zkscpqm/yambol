@@ -3,6 +3,7 @@ package broker
 import (
 	"fmt"
 	"time"
+
 	"yambol/pkg/queue"
 	"yambol/pkg/telemetry"
 )

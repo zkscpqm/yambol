@@ -3,6 +3,7 @@ package queue
 import (
 	"sync"
 	"time"
+
 	"yambol/pkg/telemetry"
 )
 

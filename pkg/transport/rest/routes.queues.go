@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"yambol/pkg/broker"
 
+	"yambol/pkg/broker"
 	"yambol/pkg/queue"
 )
 

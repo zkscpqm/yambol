@@ -1,10 +1,12 @@
 package broker
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
 	"yambol/pkg/queue"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (

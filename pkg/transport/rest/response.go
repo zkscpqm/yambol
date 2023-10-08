@@ -3,6 +3,7 @@ package rest
 import (
 	"encoding/json"
 	"net/http"
+
 	"yambol/pkg/telemetry"
 )
 

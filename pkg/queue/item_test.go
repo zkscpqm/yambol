@@ -1,10 +1,12 @@
 package queue
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
 	"yambol/pkg/util"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
