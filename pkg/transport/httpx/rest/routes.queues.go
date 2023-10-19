@@ -5,13 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"yambol/pkg/broker"
+	"yambol/pkg/transport/httpx"
 
+	"yambol/pkg/broker"
 	"yambol/pkg/queue"
 )
 
 func (s *YambolHTTPServer) queues() yambolHandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) Response {
+	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
 			"GET":  s.getQueues(),
 			"POST": s.postQueues(),
@@ -24,14 +25,14 @@ func (s *YambolHTTPServer) queues() yambolHandlerFunc {
 }
 
 func (s *YambolHTTPServer) getQueues() yambolHandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) Response {
-		resp := QueuesGetResponse(s.b.Stats())
+	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
+		resp := httpx.QueuesGetResponse(s.b.Stats())
 		s.respond(w, resp)
 		return resp
 	}
 }
 
-func (s *YambolHTTPServer) addQueueRoute(qName string, hooks ...Hook) {
+func (s *YambolHTTPServer) addQueueRoute(qName string, hooks ...httpx.Hook) {
 	s.route(
 		fmt.Sprintf("/queues/%s", qName),
 		s.queue(),
@@ -40,8 +41,8 @@ func (s *YambolHTTPServer) addQueueRoute(qName string, hooks ...Hook) {
 }
 
 func (s *YambolHTTPServer) postQueues() yambolHandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) Response {
-		qInfo := QueuesPostRequest{}
+	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
+		qInfo := httpx.QueuesPostRequest{}
 
 		if err := json.NewDecoder(r.Body).Decode(&qInfo); err != nil {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to decode request body: %v", err))
@@ -62,16 +63,16 @@ func (s *YambolHTTPServer) postQueues() yambolHandlerFunc {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to create queue `%s`: %v", qInfo.Name, err))
 		}
 
-		s.addQueueRoute(qInfo.Name, debugPrintHook())
+		s.addQueueRoute(qInfo.Name, httpx.DebugPrintHook())
 
-		resp := EmptyResponse{statusCode: http.StatusCreated}
+		resp := httpx.EmptyResponse{StatusCode: http.StatusCreated}
 		s.respond(w, resp)
 		return resp
 	}
 }
 
 func (s *YambolHTTPServer) queue() yambolHandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) Response {
+	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
 			"GET":  s.getQueue(),
 			"POST": s.postQueue(),
@@ -84,7 +85,7 @@ func (s *YambolHTTPServer) queue() yambolHandlerFunc {
 }
 
 func (s *YambolHTTPServer) getQueue() yambolHandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) Response {
+	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
 		if !s.b.QueueExists(qName) {
@@ -97,21 +98,21 @@ func (s *YambolHTTPServer) getQueue() yambolHandlerFunc {
 			return s.error(w, http.StatusInternalServerError, err)
 		}
 
-		resp := QueueGetResponse{statusCode: 200, Data: message}
+		resp := httpx.QueueGetResponse{StatusCode: 200, Data: message}
 		s.respond(w, resp)
 		return resp
 	}
 }
 
 func (s *YambolHTTPServer) postQueue() yambolHandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) Response {
+	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
 		if !s.b.QueueExists(qName) {
 			return s.error(w, http.StatusNotFound, fmt.Errorf("queue `%s` does not exist", qName))
 		}
 
-		body := YambolMessageRequest{}
+		body := httpx.YambolMessageRequest{}
 
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to decode request body: %v", err))
@@ -121,7 +122,7 @@ func (s *YambolHTTPServer) postQueue() yambolHandlerFunc {
 			return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to publish message: %v", err))
 		}
 
-		resp := EmptyResponse{statusCode: http.StatusOK}
+		resp := httpx.EmptyResponse{StatusCode: http.StatusOK}
 		s.respond(w, resp)
 		return resp
 	}

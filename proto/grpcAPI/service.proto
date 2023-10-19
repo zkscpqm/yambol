@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package grpcMDB;
+
+option go_package = "github.com/zkscpqm/yambol/proto/grpcAPI;";
+
+message HomeRequest {}
+
+message HomeResponse {
+  string uptime = 1;
+  string version = 2;
+}
+
+message QueueStats {
+  int64 Processed = 1;
+  int64 Dropped = 2;
+  int64 TotalTimeInQueue = 3;
+  int64 MaxTimeInQueue = 4;
+  int64 AverageTimeInQueue = 5;
+}
+
+message StatsRequest {
+}
+
+message StatsResponse {
+  repeated QueueStats stats = 1;
+}
+
+message GetQueueInfoRequest {
+  string queueName = 1;
+}
+message GetQueueInfoResponse {
+  QueueStats stats = 1;
+}
+message CreateQueueRequest {
+
+}
+message CreateQueueResponse {
+
+}
+message ConsumeRequest {
+
+}
+message ConsumeResponse {
+
+}
+message Message {
+
+}
+message SendResponse {
+
+}
+
+service API {
+  rpc Home (HomeRequest) returns (HomeResponse) {}
+  rpc Stats (StatsRequest) returns (StatsResponse) {}
+  rpc GetQueueInfo (GetQueueInfoRequest) returns (GetQueueInfoResponse) {}
+  rpc CreateQueue (CreateQueueRequest) returns (CreateQueueResponse) {}
+  rpc Consume (ConsumeRequest) returns (ConsumeResponse) {}
+  rpc Send (Message) returns (SendResponse) {}
+}

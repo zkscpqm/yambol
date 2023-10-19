@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"yambol/pkg/transport/httpx"
 
 	"yambol/pkg/broker"
 
@@ -16,7 +17,7 @@ var forbiddenQueueNames = []string{
 	"broadcast",
 }
 
-type yambolHandlerFunc = func(w http.ResponseWriter, r *http.Request) Response
+type yambolHandlerFunc = func(w http.ResponseWriter, r *http.Request) httpx.Response
 
 type YambolHTTPServer struct {
 	router         *mux.Router
@@ -30,12 +31,11 @@ func NewYambolHTTPServer(b *broker.MessageBroker, defaultHeaders map[string]stri
 		defaultHeaders = make(map[string]string)
 	}
 	rtr := mux.NewRouter()
-	rtr.Use(LoggingMiddleware)
+	rtr.Use(httpx.LoggingMiddleware)
 	return &YambolHTTPServer{
 		router:         rtr,
 		b:              b,
 		defaultHeaders: defaultHeaders,
-		startedAt:      time.Now(),
 	}
 }
 
@@ -46,6 +46,7 @@ func (s *YambolHTTPServer) ListenAndServeInsecure(port int) error {
 func (s *YambolHTTPServer) ListenAndServe(port int, certFile, keyFile string) error {
 	s.routes()
 	addr := fmt.Sprintf(":%d", port)
+	s.startedAt = time.Now()
 	if certFile == "" || keyFile == "" {
 		fmt.Printf("Starting Yambol with http (insecure) at [%d]\n", port)
 
@@ -59,27 +60,45 @@ func (s *YambolHTTPServer) routes() {
 	s.route(
 		"/",
 		s.home(),
-		debugPrintHook(),
+		httpx.DebugPrintHook(),
 	).Methods("GET")
 
 	s.route(
 		"/stats",
 		s.stats(),
-		debugPrintHook(),
+		httpx.DebugPrintHook(),
 	).Methods("GET")
 
 	s.route(
 		"/queues",
 		s.queues(),
-		debugPrintHook(),
+		httpx.DebugPrintHook(),
 	).Methods("GET", "POST")
 
+	s.route(
+		"/running_config",
+		s.runningConfig(),
+		httpx.DebugPrintHook(),
+	).Methods("GET", "POST")
+
+	s.route(
+		"/startup_config",
+		s.getStartupConfig(),
+		httpx.DebugPrintHook(),
+	).Methods("GET")
+
+	s.route(
+		"/running_config/save",
+		s.copyRunCfgToStartCfg(),
+		httpx.DebugPrintHook(),
+	).Methods("PUT")
+
 	for _, qName := range s.b.Queues() {
-		s.addQueueRoute(qName, debugPrintHook())
+		s.addQueueRoute(qName, httpx.DebugPrintHook())
 	}
 }
 
-func (s *YambolHTTPServer) hook(path string, wrapped yambolHandlerFunc, hooks ...Hook) http.HandlerFunc {
+func (s *YambolHTTPServer) hook(path string, wrapped yambolHandlerFunc, hooks ...httpx.Hook) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		for _, h := range hooks {
 			ok, err := h.Before(req)
@@ -100,17 +119,17 @@ func (s *YambolHTTPServer) hook(path string, wrapped yambolHandlerFunc, hooks ..
 	}
 }
 
-func (s *YambolHTTPServer) route(path string, handler yambolHandlerFunc, hooks ...Hook) *mux.Route {
+func (s *YambolHTTPServer) route(path string, handler yambolHandlerFunc, hooks ...httpx.Hook) *mux.Route {
 	return s.router.HandleFunc(path, s.hook(path, handler, hooks...))
 }
 
-func (s *YambolHTTPServer) error(w http.ResponseWriter, status int, err error) Response {
-	resp := ErrorResponse{status, err.Error()}
+func (s *YambolHTTPServer) error(w http.ResponseWriter, status int, err error, args ...any) httpx.Response {
+	resp := httpx.ErrorResponse{status, err.Error() + fmt.Sprint(args...)}
 	s.respond(w, resp)
 	return resp
 }
 
-func (s *YambolHTTPServer) respond(w http.ResponseWriter, response Response) {
+func (s *YambolHTTPServer) respond(w http.ResponseWriter, response httpx.Response) httpx.Response {
 	for k, v := range s.defaultHeaders {
 		w.Header().Set(k, v)
 	}
@@ -118,9 +137,10 @@ func (s *YambolHTTPServer) respond(w http.ResponseWriter, response Response) {
 	if b, err := response.JsonMarshalIndent(); err != nil {
 		s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to marshal response: %v", err))
 	} else {
-		w.WriteHeader(response.StatusCode())
+		w.WriteHeader(response.GetStatusCode())
 		w.Write(b)
 	}
+	return response
 }
 
 func resolveHTTPMethodTarget(r *http.Request, targets map[string]yambolHandlerFunc) (yambolHandlerFunc, error) {

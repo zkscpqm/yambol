@@ -1,4 +1,4 @@
-package rest
+package httpx
 
 import (
 	"fmt"
@@ -28,14 +28,14 @@ func NewHook(name string, before RequestHook, after ResponseHook) Hook {
 	}
 }
 
-func debugPrintHook() Hook {
+func DebugPrintHook() Hook {
 	return NewHook("debug_print",
 		func(req *http.Request) (bool, error) {
 			fmt.Printf("%s -> %s %s\n", req.RemoteAddr, req.Method, req.URL.Path)
 			return true, nil
 		},
 		func(req *http.Request, resp Response) error {
-			fmt.Printf("%s <- %s %s [%d]\n", req.RemoteAddr, req.Method, req.URL.Path, resp.StatusCode())
+			fmt.Printf("%s <- %s %s [%d]\n", req.RemoteAddr, req.Method, req.URL.Path, resp.GetStatusCode())
 			return nil
 		},
 	)

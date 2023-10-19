@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-func Seconds(n int) time.Duration {
+func Seconds(n int64) time.Duration {
 	return time.Duration(n) * time.Second
 }
 

@@ -1,20 +1,24 @@
 package broker
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+	"yambol/config"
+
 	"yambol/pkg/queue"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
-	testQueueDefaultMinLen       = 12
-	testQueueDefaultMaxLen       = 128
-	testQueueDefaultMaxSizeBytes = 1024 * 1024
+	testQueueDefaultMinLen       = int64(12)
+	testQueueDefaultMaxLen       = int64(128)
+	testQueueDefaultMaxSizeBytes = int64(1024 * 1024)
 	testQueueDefaultTTL          = time.Minute
 )
 
 func setDefaults() {
+	config.DisableAutoSave(true)
 	SetDefaultMinLen(testQueueDefaultMinLen)
 	SetDefaultMaxLen(testQueueDefaultMaxLen)
 	SetDefaultMaxSizeBytes(testQueueDefaultMaxSizeBytes)
@@ -22,6 +26,8 @@ func setDefaults() {
 }
 
 func TestDefaults(t *testing.T) {
+
+	config.DisableAutoSave(true)
 
 	_defaultMinLen := GetDefaultMinLen()
 	_defaultMaxLen := GetDefaultMaxLen()
@@ -45,16 +51,16 @@ func TestDefaults(t *testing.T) {
 	assert.Equal(t, testQueueDefaultMaxLen, GetDefaultMaxLen(), "failed to set new DefaultMaxLen")
 	assert.Equal(t, testQueueDefaultMaxSizeBytes, GetDefaultMaxSizeBytes(), "failed to set new DefaultMaxSizeBytes")
 	assert.Equal(t, testQueueDefaultTTL, GetDefaultTTL(), "failed to set new DefaultTTL")
-
 }
 
 func TestBrokerBasics(t *testing.T) {
 
 	setDefaults()
 
-	mb := New()
+	mb, err := New()
+	assert.NoError(t, err, "failed to create broker")
 	assert.Empty(t, mb.queues, "broker should have no queues by default")
-	err := mb.RemoveQueue("test")
+	err = mb.RemoveQueue("test")
 	assert.Error(t, err, "removed non existent queue")
 	assert.False(t, mb.QueueExists("test"), "broker should have no queues by default")
 	err = mb.AddDefaultQueue("test")
@@ -80,9 +86,10 @@ func TestBrokerPublishConsume(t *testing.T) {
 
 	setDefaults()
 
-	mb := New()
+	mb, err := New()
+	assert.NoError(t, err, "failed to create broker")
 
-	_, err := mb.Consume("test")
+	_, err = mb.Consume("test")
 	assert.Error(t, err, "expected to fail to consume from non existent queue")
 
 	err = mb.AddDefaultQueue("test")
@@ -117,9 +124,10 @@ func TestBrokerBroadcast(t *testing.T) {
 
 	setDefaults()
 
-	mb := New()
+	mb, err := New()
+	assert.NoError(t, err, "failed to create broker")
 
-	err := mb.AddDefaultQueue("test1")
+	err = mb.AddDefaultQueue("test1")
 	assert.NoError(t, err, "failed to add test1 queue")
 
 	err = mb.AddDefaultQueue("test2")

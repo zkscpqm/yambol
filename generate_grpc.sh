@@ -1,0 +1,1 @@
+protoc --go_out=./pkg/transport --go_opt=paths=source_relative --go-grpc_out=./pkg/transport --go-grpc_opt=paths=source_relative ./proto/grpcAPI/*.proto
