@@ -3,23 +3,25 @@ package broker
 import (
 	"fmt"
 	"time"
+	"yambol/config"
 
 	"yambol/pkg/queue"
 	"yambol/pkg/telemetry"
 )
 
 type MessageBroker struct {
-	queues map[string]*queue.Queue
-	unsent map[string][]string
-	stats  *telemetry.Collector
+	queues    map[string]*queue.Queue
+	unsent    map[string][]string
+	stats     *telemetry.Collector
+	ephemeral bool
 }
 
-func New() *MessageBroker {
+func New() (*MessageBroker, error) {
 	return &MessageBroker{
 		queues: make(map[string]*queue.Queue),
 		unsent: make(map[string][]string),
 		stats:  telemetry.NewCollector(),
-	}
+	}, nil
 }
 
 func (mb *MessageBroker) AddDefaultQueue(queueName string) error {
@@ -40,6 +42,11 @@ func (mb *MessageBroker) AddQueue(queueName string, opts QueueOptions) error {
 	}
 	queueStats := mb.stats.AddQueue(queueName)
 
+	minLen := determineMinLen(opts.MinLen)
+	maxLen := determineMaxLen(opts.MaxLen)
+	maxSizeBytes := determineMaxSizeBytes(opts.MaxSizeBytes)
+	ttl := determineTTL(opts.DefaultTTL)
+
 	mb.queues[queueName] = queue.New(
 		determineMinLen(opts.MinLen),
 		determineMaxLen(opts.MaxLen),
@@ -47,8 +54,8 @@ func (mb *MessageBroker) AddQueue(queueName string, opts QueueOptions) error {
 		determineTTL(opts.DefaultTTL),
 		queueStats,
 	)
-	// TODO: What to do with unsent?
 	mb.unsent[queueName] = make([]string, 0)
+	config.CreateQueue(queueName, minLen, maxLen, maxSizeBytes, ttl)
 	return nil
 }
 
@@ -124,6 +131,7 @@ func (mb *MessageBroker) RemoveQueue(queueName string) error {
 		return fmt.Errorf("queue '%s' not found", queueName)
 	}
 	delete(mb.queues, queueName)
+	config.DeleteQueue(queueName)
 	// TODO: Save the queue messages?
 	return nil
 

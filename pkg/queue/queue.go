@@ -9,15 +9,15 @@ import (
 
 type Queue struct {
 	mx           *sync.RWMutex
-	minLen       int
-	maxLen       int
-	maxSizeBytes int
+	minLen       int64
+	maxLen       int64
+	maxSizeBytes int64
 	items        []item
 	factory      itemFactory
 	stats        *telemetry.QueueStats
 }
 
-func New(minLen, maxLen, maxSizeBytes int, defaultTTL time.Duration, stats *telemetry.QueueStats) *Queue {
+func New(minLen, maxLen, maxSizeBytes int64, defaultTTL time.Duration, stats *telemetry.QueueStats) *Queue {
 	if minLen <= 0 {
 		minLen = 1
 	}
@@ -36,6 +36,10 @@ func (q *Queue) len() int {
 	return len(q.items)
 }
 
+func (q *Queue) len64() int64 {
+	return int64(len(q.items))
+}
+
 func (q *Queue) Len() int {
 	q.mx.RLock()
 	defer q.mx.RUnlock()
@@ -46,7 +50,7 @@ func (q *Queue) PushBatch(values ...string) ([]int, error) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if q.len()+len(values) >= q.maxLen {
+	if int64(q.len()+len(values)) >= q.maxLen {
 		return nil, ErrQueueFull
 	}
 
@@ -66,7 +70,7 @@ func (q *Queue) PushWithTTL(value string, ttl *time.Duration) (int, error) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if q.len() >= q.maxLen {
+	if q.len64() >= q.maxLen {
 		return 0, ErrQueueFull
 	}
 
@@ -79,7 +83,7 @@ func (q *Queue) Push(value string) (int, error) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if q.len() == q.maxLen {
+	if q.len64() == q.maxLen {
 		return -1, ErrQueueFull
 	}
 
@@ -140,7 +144,7 @@ func (q *Queue) Drain() []string {
 }
 
 func (q *Queue) resize() {
-	if cap(q.items) > q.minLen && len(q.items) < cap(q.items)/2 {
+	if int64(cap(q.items)) > q.minLen && len(q.items) < cap(q.items)/2 {
 		newItems := make([]item, len(q.items), len(q.items)*2)
 		copy(newItems, q.items)
 		q.items = newItems
