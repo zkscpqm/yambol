@@ -32,6 +32,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Get the version
+        id: get_version
+        run: echo "::set-output name=version::$(cat VERSION)"
+
+      - name: Fetch the latest release
+        id: latest_release
+        run: echo "::set-output name=version::$(gh release view --json version -q '.version' || echo '0.0.0')"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compare versions
+        run: |
+          if [ "${{ steps.get_version.outputs.version }}" == "${{ steps.latest_release.outputs.version }}" ]; then
+            echo "Version is the same. No need to build or release."
+            exit 1
+          fi
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -52,18 +69,7 @@ jobs:
           GOARCH=amd64 GOOS=windows CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o ./build/yambol-windows-64bit.exe ./cmd/main.go
           zip ./build/yambol-windows-64bit.zip -j ./build/yambol-windows-64bit.exe config.json
 
-      - name: Get the version
-        id: get_version
-        run: echo "::set-output name=version::$(cat VERSION)"
-
-      - name: Fetch the latest release
-        id: latest_release
-        run: echo "::set-output name=version::$(gh release view --json version -q '.version' || echo '0.0.0')"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Compare and Release
-        if: steps.get_version.outputs.version != steps.latest_release.outputs.version
+      - name: Release
         run: |
           gh release create ${{ steps.get_version.outputs.version }} \
             ./build/*.tar.gz \
