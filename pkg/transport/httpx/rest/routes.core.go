@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"os"
 	"time"
+
 	"yambol/config"
 	"yambol/pkg/transport/httpx"
-
 	"yambol/pkg/util"
 )
 
-func (s *YambolHTTPServer) home() yambolHandlerFunc {
+func (s *YambolRESTServer) home() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		return s.respond(w, httpx.YambolHomeResponse{
 			StatusCode: http.StatusOK,
@@ -22,13 +22,13 @@ func (s *YambolHTTPServer) home() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) stats() yambolHandlerFunc {
+func (s *YambolRESTServer) stats() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		return s.respond(w, httpx.YambolStatsResponse(s.b.Stats()))
 	}
 }
 
-func (s *YambolHTTPServer) runningConfig() yambolHandlerFunc {
+func (s *YambolRESTServer) runningConfig() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
 			"GET":  s.getRunningConfig(),
@@ -41,7 +41,7 @@ func (s *YambolHTTPServer) runningConfig() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) getRunningConfig() yambolHandlerFunc {
+func (s *YambolRESTServer) getRunningConfig() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		return s.respond(w, httpx.YambolConfigResponse{
 			StatusCode: http.StatusOK,
@@ -50,7 +50,7 @@ func (s *YambolHTTPServer) getRunningConfig() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) setRunningConfig() yambolHandlerFunc {
+func (s *YambolRESTServer) setRunningConfig() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		var (
 			cfg config.Configuration
@@ -65,7 +65,7 @@ func (s *YambolHTTPServer) setRunningConfig() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) startupConfig() yambolHandlerFunc {
+func (s *YambolRESTServer) startupConfig() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
 			"GET":  s.getStartupConfig(),
@@ -78,7 +78,7 @@ func (s *YambolHTTPServer) startupConfig() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) getStartupConfig() yambolHandlerFunc {
+func (s *YambolRESTServer) getStartupConfig() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		cfg, err := config.GetStartupConfig()
 		if err != nil {
@@ -96,7 +96,7 @@ func (s *YambolHTTPServer) getStartupConfig() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) copyRunCfgToStartCfg() yambolHandlerFunc {
+func (s *YambolRESTServer) copyRunCfgToStartCfg() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		if err := config.CopyRunningConfigToStartupConfig(); err != nil {
 			return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to copy running config to startup config: %v", err))

@@ -3,8 +3,8 @@ package broker
 import (
 	"testing"
 	"time"
-	"yambol/config"
 
+	"yambol/config"
 	"yambol/pkg/queue"
 
 	"github.com/stretchr/testify/assert"
