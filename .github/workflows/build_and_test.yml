@@ -39,7 +39,7 @@ jobs:
       - name: Fetch the latest release
         id: latest_release
         run: |
-          LATEST_VERSION=$(gh release list --limit 1 | cut -f1)
+          LATEST_VERSION=$(gh release list --limit 1 | cut -f1 | sed 's/^Release //')
           if [ -z "$LATEST_VERSION" ]; then
             LATEST_VERSION="0.0.0"
           fi
