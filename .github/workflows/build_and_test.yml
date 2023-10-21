@@ -38,7 +38,12 @@ jobs:
 
       - name: Fetch the latest release
         id: latest_release
-        run: echo "::set-output name=version::$(gh release view --json version -q '.version' || echo '0.0.0')"
+        run: |
+          LATEST_VERSION=$(gh release list --limit 1 | cut -f1)
+          if [ -z "$LATEST_VERSION" ]; then
+            LATEST_VERSION="0.0.0"
+          fi
+          echo "::set-output name=version::$LATEST_VERSION"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
