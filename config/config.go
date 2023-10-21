@@ -5,9 +5,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"syscall"
 )
 
 var configFilePath, _ = filepath.Abs("config.json")
+
+func init() {
+	val, ok := syscall.Getenv("YAMBOL_CONFIG")
+	if ok {
+		configFilePath = val
+	}
+}
 
 type QueueMap map[string]QueueState
 
@@ -48,15 +56,18 @@ func (s BrokerState) Copy() (rv BrokerState) {
 	}
 }
 
+type Server struct {
+	Enabled    bool `json:"enabled,omitempty"`
+	Port       int  `json:"port,omitempty"`
+	TlsEnabled bool `json:"tls_enabled,omitempty"`
+}
+
 type Configuration struct {
 	DisableAutoSave bool `json:"disable_auto_save,omitempty"`
 	API             struct {
-		HTTP struct {
-			Port int `json:"port"`
-		} `json:"http,omitempty"`
-		GRPC struct {
-			Port int `json:"port"`
-		} `json:"grpc,omitempty"`
+		REST        Server `json:"rest,omitempty"`
+		GRPC        Server `json:"grpc,omitempty"`
+		HTTP        Server `json:"http,omitempty"`
 		Certificate string `json:"certificate,omitempty"`
 		Key         string `json:"key,omitempty"`
 	} `json:"api,omitempty"`

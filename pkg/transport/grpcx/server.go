@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"net"
 	"time"
-	"yambol/pkg/util"
 
 	"yambol/pkg/broker"
 	"yambol/pkg/transport/proto/grpcAPI"
+	"yambol/pkg/util"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 type YambolGRPCServer struct {
@@ -20,10 +21,16 @@ type YambolGRPCServer struct {
 	grpcAPI.APIServer
 }
 
-func NewYambolGRPCServer(b *broker.MessageBroker) *YambolGRPCServer {
-	grpcServer := grpc.NewServer()
-
-	//rtr.Use(LoggingMiddleware)
+func NewYambolGRPCServer(b *broker.MessageBroker, tlsEnabled bool, certFile, keyFile string) (*YambolGRPCServer, error) {
+	opts := make([]grpc.ServerOption, 0)
+	if tlsEnabled {
+		creds, err := credentials.NewServerTLSFromFile(certFile, keyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load TLS Credentials")
+		}
+		opts = append(opts, grpc.Creds(creds))
+	}
+	grpcServer := grpc.NewServer(opts...)
 
 	svr := &YambolGRPCServer{
 		svr:       grpcServer,
@@ -31,14 +38,14 @@ func NewYambolGRPCServer(b *broker.MessageBroker) *YambolGRPCServer {
 		startedAt: time.Now(),
 	}
 	grpcAPI.RegisterAPIServer(grpcServer, svr)
-	return svr
+	return svr, nil
 }
 
-func (s *YambolGRPCServer) Serve(host string, port int) error {
+func (s *YambolGRPCServer) ListenAndServe(port int) error {
 	if s.svr == nil {
 		return fmt.Errorf("cannot start server, server is nil")
 	}
-	target := fmt.Sprintf("%s:%d", host, port)
+	target := fmt.Sprintf("localhost:%d", port)
 	s.startedAt = time.Now()
 	lis, err := net.Listen("tcp", target)
 	if err != nil {
@@ -49,10 +56,6 @@ func (s *YambolGRPCServer) Serve(host string, port int) error {
 		return fmt.Errorf("failed to serve: %v", err)
 	}
 	return nil
-}
-
-func (s *YambolGRPCServer) ServeLocal(port int) error {
-	return s.Serve("localhost", port)
 }
 
 func (s *YambolGRPCServer) Close(force bool) {

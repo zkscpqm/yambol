@@ -5,13 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"yambol/pkg/transport/httpx"
 
 	"yambol/pkg/broker"
 	"yambol/pkg/queue"
+	"yambol/pkg/transport/httpx"
 )
 
-func (s *YambolHTTPServer) queues() yambolHandlerFunc {
+func (s *YambolRESTServer) queues() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
 			"GET":  s.getQueues(),
@@ -24,7 +24,7 @@ func (s *YambolHTTPServer) queues() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) getQueues() yambolHandlerFunc {
+func (s *YambolRESTServer) getQueues() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		resp := httpx.QueuesGetResponse(s.b.Stats())
 		s.respond(w, resp)
@@ -32,7 +32,7 @@ func (s *YambolHTTPServer) getQueues() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) addQueueRoute(qName string, hooks ...httpx.Hook) {
+func (s *YambolRESTServer) addQueueRoute(qName string, hooks ...httpx.Hook) {
 	s.route(
 		fmt.Sprintf("/queues/%s", qName),
 		s.queue(),
@@ -40,7 +40,7 @@ func (s *YambolHTTPServer) addQueueRoute(qName string, hooks ...httpx.Hook) {
 	).Methods("GET", "POST")
 }
 
-func (s *YambolHTTPServer) postQueues() yambolHandlerFunc {
+func (s *YambolRESTServer) postQueues() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qInfo := httpx.QueuesPostRequest{}
 
@@ -71,7 +71,7 @@ func (s *YambolHTTPServer) postQueues() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) queue() yambolHandlerFunc {
+func (s *YambolRESTServer) queue() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
 			"GET":  s.getQueue(),
@@ -84,7 +84,7 @@ func (s *YambolHTTPServer) queue() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) getQueue() yambolHandlerFunc {
+func (s *YambolRESTServer) getQueue() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
@@ -104,7 +104,7 @@ func (s *YambolHTTPServer) getQueue() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolHTTPServer) postQueue() yambolHandlerFunc {
+func (s *YambolRESTServer) postQueue() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 

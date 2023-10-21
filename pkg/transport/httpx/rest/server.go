@@ -6,9 +6,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"yambol/pkg/transport/httpx"
 
 	"yambol/pkg/broker"
+	"yambol/pkg/transport/httpx"
 
 	"github.com/gorilla/mux"
 )
@@ -19,31 +19,31 @@ var forbiddenQueueNames = []string{
 
 type yambolHandlerFunc = func(w http.ResponseWriter, r *http.Request) httpx.Response
 
-type YambolHTTPServer struct {
+type YambolRESTServer struct {
 	router         *mux.Router
 	b              *broker.MessageBroker
 	defaultHeaders map[string]string
 	startedAt      time.Time
 }
 
-func NewYambolHTTPServer(b *broker.MessageBroker, defaultHeaders map[string]string) *YambolHTTPServer {
+func NewYambolRESTServer(b *broker.MessageBroker, defaultHeaders map[string]string) *YambolRESTServer {
 	if defaultHeaders == nil {
 		defaultHeaders = make(map[string]string)
 	}
 	rtr := mux.NewRouter()
 	rtr.Use(httpx.LoggingMiddleware)
-	return &YambolHTTPServer{
+	return &YambolRESTServer{
 		router:         rtr,
 		b:              b,
 		defaultHeaders: defaultHeaders,
 	}
 }
 
-func (s *YambolHTTPServer) ListenAndServeInsecure(port int) error {
+func (s *YambolRESTServer) ListenAndServeInsecure(port int) error {
 	return s.ListenAndServe(port, "", "")
 }
 
-func (s *YambolHTTPServer) ListenAndServe(port int, certFile, keyFile string) error {
+func (s *YambolRESTServer) ListenAndServe(port int, certFile, keyFile string) error {
 	s.routes()
 	addr := fmt.Sprintf(":%d", port)
 	s.startedAt = time.Now()
@@ -56,7 +56,7 @@ func (s *YambolHTTPServer) ListenAndServe(port int, certFile, keyFile string) er
 	return http.ListenAndServeTLS(addr, certFile, keyFile, s.router)
 }
 
-func (s *YambolHTTPServer) routes() {
+func (s *YambolRESTServer) routes() {
 	s.route(
 		"/",
 		s.home(),
@@ -98,7 +98,7 @@ func (s *YambolHTTPServer) routes() {
 	}
 }
 
-func (s *YambolHTTPServer) hook(path string, wrapped yambolHandlerFunc, hooks ...httpx.Hook) http.HandlerFunc {
+func (s *YambolRESTServer) hook(path string, wrapped yambolHandlerFunc, hooks ...httpx.Hook) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		for _, h := range hooks {
 			ok, err := h.Before(req)
@@ -119,17 +119,17 @@ func (s *YambolHTTPServer) hook(path string, wrapped yambolHandlerFunc, hooks ..
 	}
 }
 
-func (s *YambolHTTPServer) route(path string, handler yambolHandlerFunc, hooks ...httpx.Hook) *mux.Route {
+func (s *YambolRESTServer) route(path string, handler yambolHandlerFunc, hooks ...httpx.Hook) *mux.Route {
 	return s.router.HandleFunc(path, s.hook(path, handler, hooks...))
 }
 
-func (s *YambolHTTPServer) error(w http.ResponseWriter, status int, err error, args ...any) httpx.Response {
+func (s *YambolRESTServer) error(w http.ResponseWriter, status int, err error, args ...any) httpx.Response {
 	resp := httpx.ErrorResponse{status, err.Error() + fmt.Sprint(args...)}
 	s.respond(w, resp)
 	return resp
 }
 
-func (s *YambolHTTPServer) respond(w http.ResponseWriter, response httpx.Response) httpx.Response {
+func (s *YambolRESTServer) respond(w http.ResponseWriter, response httpx.Response) httpx.Response {
 	for k, v := range s.defaultHeaders {
 		w.Header().Set(k, v)
 	}

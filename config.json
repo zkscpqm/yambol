@@ -1,1 +1,26 @@
-{"disable_auto_save":true,"api":{"http":{"port":8080},"grpc":{"port":9080},"certificate":".tls/yambol.crt","key":".tls/yambol.key"},"broker":{"default_min_length":12,"default_max_length":2000,"default_max_size_bytes":10485760,"default_ttl":4659767778871345152,"queues":{"default":{"min_length":0,"max_length":2000,"max_size_bytes":10485760,"ttl":4659767778871345152},"test":{"min_length":100,"max_length":10000,"max_size_bytes":20571520,"ttl":5000000000000000000}}}}
+{
+    "disable_auto_save": true,
+    "api": {
+        "rest": {
+            "enabled": true,
+            "port": 21419
+        },
+        "grpc": {
+            "port": 21421
+        },
+        "certificate": ".tls/yambol.crt",
+        "key": ".tls/yambol.key"
+    },
+    "broker": {
+        "default_min_length": 12,
+        "default_max_length": 2000,
+        "default_max_size_bytes": 10485760,
+        "queues": {
+            "default": { },
+            "test": {
+                "min_length": 100,
+                "max_length": 10000
+            }
+        }
+    }
+}
