@@ -1,5 +1,9 @@
 {
     "disable_auto_save": true,
+    "log": {
+        "level": "debug",
+        "file": "./.logs/yambol.log"
+    },
     "api": {
         "rest": {
             "enabled": true,

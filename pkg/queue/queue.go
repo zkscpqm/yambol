@@ -71,7 +71,7 @@ func (q *Queue) PushWithTTL(value string, ttl *time.Duration) (int, error) {
 	defer q.mx.Unlock()
 
 	if q.len64() >= q.maxLen {
-		return 0, ErrQueueFull
+		return -1, ErrQueueFull
 	}
 
 	item_ := q.factory.newItem(value, *ttl)
@@ -83,7 +83,7 @@ func (q *Queue) Push(value string) (int, error) {
 	q.mx.Lock()
 	defer q.mx.Unlock()
 
-	if q.len64() == q.maxLen {
+	if q.len64() >= q.maxLen {
 		return -1, ErrQueueFull
 	}
 

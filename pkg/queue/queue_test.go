@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
 	"yambol/pkg/telemetry"
 	"yambol/pkg/util"
 

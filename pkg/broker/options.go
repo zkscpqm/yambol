@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"fmt"
 	"time"
 
 	"yambol/config"
@@ -90,4 +91,9 @@ type QueueOptions struct {
 	MaxLen       int64
 	MaxSizeBytes int64
 	DefaultTTL   time.Duration
+}
+
+func (opts QueueOptions) String() string {
+	return fmt.Sprintf("MinLen: %d, MaxLen: %d, MaxSizeBytes: %d, DefaultTTL: %s",
+		opts.MinLen, opts.MaxLen, opts.MaxSizeBytes, opts.DefaultTTL)
 }

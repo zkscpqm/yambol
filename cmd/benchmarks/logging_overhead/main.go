@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 const (
 	minMaxLen = 1024 * 1024
 	maxSize   = 1024 * 1024 * 32
-	seconds   = 5
+	seconds   = 30
 	oneByte   = "a"
 )
 
@@ -96,8 +95,8 @@ func test(val string, logger *log.Logger) {
 
 func main() {
 
-	fh, err := log.NewDefaultFileHandler("./.logs/throughput.log")
-	logger := log.New("throughput", log.LevelDebug, fh, log.NewDefaultStdioHandler())
+	fh, err := log.NewDefaultFileHandler("./.logs/logging_overhead_WriteSync.log")
+	logger := log.New("log_overhead", log.LevelDebug, fh, log.NewDefaultStdioHandler())
 	if err != nil {
 		panic(err)
 	}
@@ -107,12 +106,7 @@ func main() {
 		return
 	}
 	defer file.Close()
-	if err = pprof.StartCPUProfile(file); err != nil {
-		logger.Error(err.Error())
-		return
-	}
 	for _, size := range []int{16, 256, 512, 1024, 2048} {
 		test(strings.Repeat(oneByte, size), logger)
 	}
-	pprof.StopCPUProfile()
 }
