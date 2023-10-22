@@ -27,12 +27,11 @@ func (s *YambolRESTServer) queues() yambolHandlerFunc {
 func (s *YambolRESTServer) getQueues() yambolHandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		resp := httpx.QueuesGetResponse(s.b.Stats())
-		s.respond(w, resp)
-		return resp
+		return s.respond(w, resp)
 	}
 }
 
-func (s *YambolRESTServer) addQueueRoute(qName string, hooks ...httpx.Hook) {
+func (s *YambolRESTServer) addQueueRoute(qName string, hooks ...httpx.Middleware) {
 	s.route(
 		fmt.Sprintf("/queues/%s", qName),
 		s.queue(),
@@ -63,11 +62,8 @@ func (s *YambolRESTServer) postQueues() yambolHandlerFunc {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to create queue `%s`: %v", qInfo.Name, err))
 		}
 
-		s.addQueueRoute(qInfo.Name, httpx.DebugPrintHook())
-
-		resp := httpx.EmptyResponse{StatusCode: http.StatusCreated}
-		s.respond(w, resp)
-		return resp
+		s.addQueueRoute(qInfo.Name, httpx.DebugPrintHook(s.logger))
+		return s.respond(w, httpx.EmptyResponse{StatusCode: http.StatusCreated})
 	}
 }
 
@@ -98,9 +94,7 @@ func (s *YambolRESTServer) getQueue() yambolHandlerFunc {
 			return s.error(w, http.StatusInternalServerError, err)
 		}
 
-		resp := httpx.QueueGetResponse{StatusCode: 200, Data: message}
-		s.respond(w, resp)
-		return resp
+		return s.respond(w, httpx.QueueGetResponse{StatusCode: 200, Data: message})
 	}
 }
 
@@ -122,8 +116,6 @@ func (s *YambolRESTServer) postQueue() yambolHandlerFunc {
 			return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to publish message: %v", err))
 		}
 
-		resp := httpx.EmptyResponse{StatusCode: http.StatusOK}
-		s.respond(w, resp)
-		return resp
+		return s.respond(w, httpx.EmptyResponse{StatusCode: http.StatusOK})
 	}
 }

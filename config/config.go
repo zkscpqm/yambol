@@ -72,6 +72,10 @@ type Configuration struct {
 		Key         string `json:"key,omitempty"`
 	} `json:"api,omitempty"`
 	Broker BrokerState `json:"broker,omitempty"`
+	Log    struct {
+		Level string `json:"level,omitempty"`
+		File  string `json:"file,omitempty"`
+	} `json:"log,omitempty"`
 }
 
 func Empty() Configuration {
@@ -112,4 +116,9 @@ func (c *Configuration) Copy() Configuration {
 		API:             c.API,
 		Broker:          c.Broker.Copy(),
 	}
+}
+
+func (c *Configuration) String() string {
+	b, _ := json.MarshalIndent(c, "", "    ")
+	return string(b)
 }

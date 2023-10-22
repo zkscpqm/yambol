@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"yambol/pkg/util/log"
 
 	"yambol/pkg/broker"
 	"yambol/pkg/transport/httpx"
@@ -24,18 +25,20 @@ type YambolRESTServer struct {
 	b              *broker.MessageBroker
 	defaultHeaders map[string]string
 	startedAt      time.Time
+	logger         *log.Logger
 }
 
-func NewYambolRESTServer(b *broker.MessageBroker, defaultHeaders map[string]string) *YambolRESTServer {
+func NewYambolRESTServer(b *broker.MessageBroker, defaultHeaders map[string]string, logger *log.Logger) *YambolRESTServer {
 	if defaultHeaders == nil {
 		defaultHeaders = make(map[string]string)
 	}
 	rtr := mux.NewRouter()
-	rtr.Use(httpx.LoggingMiddleware)
+
 	return &YambolRESTServer{
 		router:         rtr,
 		b:              b,
 		defaultHeaders: defaultHeaders,
+		logger:         logger.NewFrom("REST"),
 	}
 }
 
@@ -44,15 +47,15 @@ func (s *YambolRESTServer) ListenAndServeInsecure(port int) error {
 }
 
 func (s *YambolRESTServer) ListenAndServe(port int, certFile, keyFile string) error {
+	s.logger.Info("trying to listen on [%d]...", port)
 	s.routes()
 	addr := fmt.Sprintf(":%d", port)
 	s.startedAt = time.Now()
 	if certFile == "" || keyFile == "" {
-		fmt.Printf("Starting Yambol with http (insecure) at [%d]\n", port)
-
+		s.logger.Info("Starting Yambol with http (insecure) at [%d]", port)
 		return http.ListenAndServe(addr, s.router)
 	}
-	fmt.Printf("Starting Yambol with https (secure) at [%d]\n", port)
+	s.logger.Info("Starting Yambol with https (secure) at [%d]", port)
 	return http.ListenAndServeTLS(addr, certFile, keyFile, s.router)
 }
 
@@ -60,51 +63,51 @@ func (s *YambolRESTServer) routes() {
 	s.route(
 		"/",
 		s.home(),
-		httpx.DebugPrintHook(),
+		httpx.DebugPrintHook(s.logger),
 	).Methods("GET")
 
 	s.route(
 		"/stats",
 		s.stats(),
-		httpx.DebugPrintHook(),
+		httpx.DebugPrintHook(s.logger),
 	).Methods("GET")
 
 	s.route(
 		"/queues",
 		s.queues(),
-		httpx.DebugPrintHook(),
+		httpx.DebugPrintHook(s.logger),
 	).Methods("GET", "POST")
 
 	s.route(
 		"/running_config",
 		s.runningConfig(),
-		httpx.DebugPrintHook(),
+		httpx.DebugPrintHook(s.logger),
 	).Methods("GET", "POST")
 
 	s.route(
 		"/startup_config",
 		s.getStartupConfig(),
-		httpx.DebugPrintHook(),
+		httpx.DebugPrintHook(s.logger),
 	).Methods("GET")
 
 	s.route(
 		"/running_config/save",
 		s.copyRunCfgToStartCfg(),
-		httpx.DebugPrintHook(),
+		httpx.DebugPrintHook(s.logger),
 	).Methods("PUT")
 
 	for _, qName := range s.b.Queues() {
-		s.addQueueRoute(qName, httpx.DebugPrintHook())
+		s.addQueueRoute(qName, httpx.DebugPrintHook(s.logger))
 	}
 }
 
-func (s *YambolRESTServer) hook(path string, wrapped yambolHandlerFunc, hooks ...httpx.Hook) http.HandlerFunc {
+func (s *YambolRESTServer) hook(path string, wrapped yambolHandlerFunc, hooks ...httpx.Middleware) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		for _, h := range hooks {
 			ok, err := h.Before(req)
 
 			if err != nil {
-				fmt.Printf("error in %s pre-execution hook: %v\n", path, err)
+				s.logger.Error("error in %s pre-execution hook: %v", path, err)
 			}
 			if !ok {
 				return
@@ -113,20 +116,19 @@ func (s *YambolRESTServer) hook(path string, wrapped yambolHandlerFunc, hooks ..
 		resp := wrapped(w, req)
 		for _, h := range hooks {
 			if err := h.After(req, resp); err != nil {
-				fmt.Printf("error in %s post-execution hook: %v\n", path, err)
+				s.logger.Error("error in %s post-execution hook: %v", path, err)
 			}
 		}
 	}
 }
 
-func (s *YambolRESTServer) route(path string, handler yambolHandlerFunc, hooks ...httpx.Hook) *mux.Route {
+func (s *YambolRESTServer) route(path string, handler yambolHandlerFunc, hooks ...httpx.Middleware) *mux.Route {
+	s.logger.Debug("routing [%s]", path)
 	return s.router.HandleFunc(path, s.hook(path, handler, hooks...))
 }
 
 func (s *YambolRESTServer) error(w http.ResponseWriter, status int, err error, args ...any) httpx.Response {
-	resp := httpx.ErrorResponse{status, err.Error() + fmt.Sprint(args...)}
-	s.respond(w, resp)
-	return resp
+	return s.respond(w, httpx.ErrorResponse{StatusCode: status, Error: err.Error() + fmt.Sprint(args...)})
 }
 
 func (s *YambolRESTServer) respond(w http.ResponseWriter, response httpx.Response) httpx.Response {
@@ -135,10 +137,11 @@ func (s *YambolRESTServer) respond(w http.ResponseWriter, response httpx.Respons
 	}
 	w.Header().Set("Content-Type", "application/json")
 	if b, err := response.JsonMarshalIndent(); err != nil {
-		s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to marshal response: %v", err))
+		return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to marshal response: %v", err))
 	} else {
 		w.WriteHeader(response.GetStatusCode())
 		w.Write(b)
+		s.logger.Debug("wrote to buffer:\n[%d]\n%s", response.GetStatusCode(), string(b))
 	}
 	return response
 }

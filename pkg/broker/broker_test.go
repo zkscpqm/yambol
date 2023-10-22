@@ -6,6 +6,7 @@ import (
 
 	"yambol/config"
 	"yambol/pkg/queue"
+	"yambol/pkg/util/log"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -23,6 +24,10 @@ func setDefaults() {
 	SetDefaultMaxLen(testQueueDefaultMaxLen)
 	SetDefaultMaxSizeBytes(testQueueDefaultMaxSizeBytes)
 	SetDefaultTTL(testQueueDefaultTTL)
+}
+
+func testLogger() *log.Logger {
+	return log.New("TEST", log.LevelOff)
 }
 
 func TestDefaults(t *testing.T) {
@@ -57,7 +62,7 @@ func TestBrokerBasics(t *testing.T) {
 
 	setDefaults()
 
-	mb, err := New()
+	mb, err := New(testLogger())
 	assert.NoError(t, err, "failed to create broker")
 	assert.Empty(t, mb.queues, "broker should have no queues by default")
 	err = mb.RemoveQueue("test")
@@ -86,7 +91,7 @@ func TestBrokerPublishConsume(t *testing.T) {
 
 	setDefaults()
 
-	mb, err := New()
+	mb, err := New(testLogger())
 	assert.NoError(t, err, "failed to create broker")
 
 	_, err = mb.Consume("test")
@@ -124,7 +129,7 @@ func TestBrokerBroadcast(t *testing.T) {
 
 	setDefaults()
 
-	mb, err := New()
+	mb, err := New(testLogger())
 	assert.NoError(t, err, "failed to create broker")
 
 	err = mb.AddDefaultQueue("test1")
