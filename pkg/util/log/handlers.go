@@ -206,6 +206,7 @@ func (h *FileHandler) write(format string, args ...interface{}) {
 	h.mx.Lock()
 	defer h.mx.Unlock()
 	h.file.f.WriteString(fmt.Sprintf(format+"\n", args...))
+	h.file.f.Sync()
 }
 
 func (h *FileHandler) SetLevel(level Level) {

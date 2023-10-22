@@ -95,7 +95,7 @@ func test(val string, logger *log.Logger) {
 
 func main() {
 
-	fh, err := log.NewDefaultFileHandler("./.logs/logging_overhead_pre_implementation.log")
+	fh, err := log.NewDefaultFileHandler("./.logs/logging_overhead_WriteSync.log")
 	logger := log.New("log_overhead", log.LevelDebug, fh, log.NewDefaultStdioHandler())
 	if err != nil {
 		panic(err)
@@ -106,11 +106,6 @@ func main() {
 		return
 	}
 	defer file.Close()
-	fh, err = log.NewDefaultFileHandler("./.logs/logging_overhead_post_implementation_enabled_info_APP.log")
-	if err != nil {
-		panic(err)
-	}
-	defer fh.Close()
 	for _, size := range []int{16, 256, 512, 1024, 2048} {
 		test(strings.Repeat(oneByte, size), logger)
 	}
