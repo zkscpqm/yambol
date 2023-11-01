@@ -34,11 +34,11 @@ func NewHook(name string, before RequestHook, after ResponseHook) Middleware {
 func DebugPrintHook(logger *log.Logger) Middleware {
 	return NewHook("debug_print",
 		func(req *http.Request) (bool, error) {
-			logger.Debug("%s -> %s %s\n", req.RemoteAddr, req.Method, req.URL.Path)
+			logger.Info("%s -> %s %s\n", req.RemoteAddr, req.Method, req.URL.Path)
 			return true, nil
 		},
 		func(req *http.Request, resp Response) error {
-			logger.Debug("%s <- %s %s [%d]\n", req.RemoteAddr, req.Method, req.URL.Path, resp.GetStatusCode())
+			logger.Info("%s <- %s %s [%d]\n", req.RemoteAddr, req.Method, req.URL.Path, resp.GetStatusCode())
 			return nil
 		},
 	)

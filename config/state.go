@@ -10,28 +10,33 @@ import (
 )
 
 var (
-	_config          = Empty()
-	autoSaveDisabled bool
-	mx               = &sync.RWMutex{}
-	logger           = log.New("CONFIG", log.LevelOff)
+	_config = Empty()
+	mx      = &sync.RWMutex{}
+	logger  = log.New("CONFIG", log.LevelOff)
 )
 
+func autoSaveDisabled() bool {
+	return _config.DisableAutoSave
+}
+
 func Init(config Configuration, l *log.Logger) {
-	logger = l.NewFrom("CONFIG")
+	SetLogger(l)
 	SetRunningConfig(config)
+}
+
+func SetLogger(l *log.Logger) {
+	logger = l.NewFrom("CONFIG")
 }
 
 func SetRunningConfig(config Configuration) {
 	logger.Debug("Set running config to:\n%s", config.String())
 	_config = config
-	autoSaveDisabled = config.DisableAutoSave
 	autoSave()
 }
 
 func DisableAutoSave(disable bool) {
 	logger.Debug("Auto save: %s", util.BoolLabels(!disable, "enabled", "disabled"))
 	_config.DisableAutoSave = disable
-	autoSaveDisabled = disable
 	autoSave()
 }
 
@@ -82,8 +87,7 @@ func SetDefaultTTL(value int64) {
 }
 
 func autoSave() {
-	if autoSaveDisabled {
-		logger.Debug("auto save disabled")
+	if autoSaveDisabled() {
 		return
 	}
 	if err := CopyRunningConfigToStartupConfig(); err != nil {
@@ -96,8 +100,10 @@ func GetRunningConfig() Configuration {
 }
 
 func GetStartupConfig() (Configuration, error) {
+	logger.Debug("Getting startup config")
 	cfg, err := FromFile()
 	if err != nil {
+		logger.Debug("Failed to get startup config from file: %v", err)
 		return Empty(), fmt.Errorf("failed to load startup config: %s", err)
 	}
 	return *cfg, nil

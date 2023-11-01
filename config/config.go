@@ -62,20 +62,24 @@ type Server struct {
 	TlsEnabled bool `json:"tls_enabled,omitempty"`
 }
 
+type ApiConfig struct {
+	REST        Server `json:"rest,omitempty"`
+	GRPC        Server `json:"grpc,omitempty"`
+	HTTP        Server `json:"http,omitempty"`
+	Certificate string `json:"certificate,omitempty"`
+	Key         string `json:"key,omitempty"`
+}
+
+type LogConfig struct {
+	Level string `json:"level,omitempty"`
+	File  string `json:"file,omitempty"`
+}
+
 type Configuration struct {
-	DisableAutoSave bool `json:"disable_auto_save,omitempty"`
-	API             struct {
-		REST        Server `json:"rest,omitempty"`
-		GRPC        Server `json:"grpc,omitempty"`
-		HTTP        Server `json:"http,omitempty"`
-		Certificate string `json:"certificate,omitempty"`
-		Key         string `json:"key,omitempty"`
-	} `json:"api,omitempty"`
-	Broker BrokerState `json:"broker,omitempty"`
-	Log    struct {
-		Level string `json:"level,omitempty"`
-		File  string `json:"file,omitempty"`
-	} `json:"log,omitempty"`
+	DisableAutoSave bool        `json:"disable_auto_save,omitempty"`
+	API             ApiConfig   `json:"api,omitempty"`
+	Broker          BrokerState `json:"broker,omitempty"`
+	Log             LogConfig   `json:"log,omitempty"`
 }
 
 func Empty() Configuration {
@@ -87,11 +91,14 @@ func Empty() Configuration {
 }
 
 func FromFile() (*Configuration, error) {
+	logger.Debug("Loading config from file: %s", configFilePath)
 	file, err := os.Open(configFilePath)
 	if err != nil {
+		logger.Debug("Failed to open config file `%s`: %v", configFilePath, err)
 		return nil, fmt.Errorf("failed to open config file `%s`: %v", configFilePath, err)
 	}
 	defer file.Close()
+	logger.Debug("Loaded config from file: %s", configFilePath)
 
 	var config Configuration
 	if err = json.NewDecoder(file).Decode(&config); err != nil {
@@ -115,6 +122,7 @@ func (c *Configuration) Copy() Configuration {
 		DisableAutoSave: c.DisableAutoSave,
 		API:             c.API,
 		Broker:          c.Broker.Copy(),
+		Log:             c.Log,
 	}
 }
 

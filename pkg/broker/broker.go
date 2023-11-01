@@ -19,13 +19,13 @@ type MessageBroker struct {
 	logger    *log.Logger
 }
 
-func New(logger *log.Logger) (*MessageBroker, error) {
+func New(logger *log.Logger) *MessageBroker {
 	return &MessageBroker{
 		queues: make(map[string]*queue.Queue),
 		unsent: make(map[string][]string),
 		stats:  telemetry.NewCollector(),
 		logger: logger.NewFrom("BROKER"),
-	}, nil
+	}
 }
 
 func (mb *MessageBroker) AddDefaultQueue(queueName string) error {

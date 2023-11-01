@@ -30,40 +30,40 @@ func (r ErrorResponse) JsonMarshalIndent() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
-type YambolHomeResponse struct {
+type HomeResponse struct {
 	StatusCode int
 	Uptime     string `json:"uptime"`
 	Version    string `json:"version"`
 }
 
-func (r YambolHomeResponse) GetStatusCode() int {
+func (r HomeResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r YambolHomeResponse) JsonMarshalIndent() ([]byte, error) {
+func (r HomeResponse) JsonMarshalIndent() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
-type YambolConfigResponse struct {
+type ConfigResponse struct {
 	StatusCode int
 	Config     config.Configuration
 }
 
-func (r YambolConfigResponse) GetStatusCode() int {
+func (r ConfigResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r YambolConfigResponse) JsonMarshalIndent() ([]byte, error) {
+func (r ConfigResponse) JsonMarshalIndent() ([]byte, error) {
 	return jMarshalIndent(r.Config)
 }
 
-type YambolStatsResponse map[string]telemetry.QueueStats
+type StatsResponse map[string]telemetry.QueueStats
 
-func (r YambolStatsResponse) GetStatusCode() int {
+func (r StatsResponse) GetStatusCode() int {
 	return http.StatusOK
 }
 
-func (r YambolStatsResponse) JsonMarshalIndent() ([]byte, error) {
+func (r StatsResponse) JsonMarshalIndent() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
@@ -87,7 +87,7 @@ func (r QueueGetResponse) GetStatusCode() int {
 }
 
 func (r QueueGetResponse) JsonMarshalIndent() ([]byte, error) {
-	return jMarshalIndent(r)
+	return jMarshalIndent(r.Data)
 }
 
 type EmptyResponse struct {

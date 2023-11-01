@@ -46,11 +46,7 @@ func main() {
 	broker.SetDefaultMaxSizeBytes(cfg.Broker.DefaultMaxSizeBytes)
 	broker.SetDefaultTTL(util.Seconds(cfg.Broker.DefaultTTL))
 
-	b, err := broker.New(logger)
-	if err != nil {
-		logger.Error("failed to create broker: %v", err)
-		os.Exit(1)
-	}
+	b := broker.New(logger)
 	for qName, qCfg := range cfg.Broker.Queues {
 		if err = b.AddQueue(qName, broker.QueueOptions{
 			MinLen:       qCfg.MinLength,
@@ -78,7 +74,7 @@ func main() {
 			return
 		}
 		wg.Add(1)
-		s := rest.NewYambolRESTServer(b, nil, logger)
+		s := rest.NewServer(b, nil, logger)
 		port := cfg.API.REST.Port
 		if port <= 0 {
 			if cfg.API.REST.TlsEnabled {
