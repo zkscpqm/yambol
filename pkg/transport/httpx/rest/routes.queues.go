@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"yambol/config"
+	"yambol/pkg/util"
 
 	"yambol/pkg/queue"
 	"yambol/pkg/transport/httpx"
@@ -14,8 +15,8 @@ import (
 func (s *Server) queues() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]HandlerFunc{
-			"GET":  s.getQueues(),
-			"POST": s.addNewQueue(),
+			http.MethodGet:  s.getQueues(),
+			http.MethodPost: s.addNewQueue(),
 		})
 		if err != nil {
 			return s.error(w, http.StatusMethodNotAllowed, err)
@@ -62,9 +63,9 @@ func (s *Server) addNewQueue() HandlerFunc {
 func (s *Server) queue() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]HandlerFunc{
-			"GET":    s.consumeFromQueue(),
-			"POST":   s.sendMessageToQueue(),
-			"DELETE": s.deleteQueue(),
+			http.MethodGet:    s.consumeFromQueue(),
+			http.MethodPost:   s.sendMessageToQueue(),
+			http.MethodDelete: s.deleteQueue(),
 		})
 		if err != nil {
 			return s.error(w, http.StatusMethodNotAllowed, err)
@@ -82,7 +83,6 @@ func (s *Server) consumeFromQueue() HandlerFunc {
 		}
 
 		message, err := s.b.Consume(qName)
-
 		if err != nil && !errors.Is(err, queue.ErrQueueEmpty) {
 			return s.error(w, http.StatusInternalServerError, err)
 		}
@@ -99,13 +99,21 @@ func (s *Server) sendMessageToQueue() HandlerFunc {
 			return s.error(w, http.StatusNotFound, fmt.Errorf("queue `%s` does not exist", qName))
 		}
 
-		body := httpx.MessageRequest{}
+		var (
+			body httpx.MessageRequest
+			err  error
+		)
 
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err = json.NewDecoder(r.Body).Decode(&body); err != nil {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to decode request body: %v", err))
 		}
-
-		if err := s.b.Publish(body.Message, qName); err != nil {
+		ttl := util.Seconds(body.TTL)
+		if ttl == 0 {
+			err = s.b.Publish(body.Message, qName)
+		} else {
+			err = s.b.PublishWithTTL(body.Message, &ttl, qName)
+		}
+		if err != nil {
 			return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to publish message: %v", err))
 		}
 
@@ -134,5 +142,5 @@ func (s *Server) addQueueRoute(qName string, hooks ...httpx.Middleware) {
 		fmt.Sprintf("/queues/%s", qName),
 		s.queue(),
 		hooks...,
-	).Methods("GET", "POST", "DELETE")
+	).Methods(http.MethodGet, http.MethodPost, http.MethodDelete)
 }

@@ -64,37 +64,37 @@ func (s *Server) routes() {
 		"/",
 		s.home(),
 		httpx.DebugPrintHook(s.logger),
-	).Methods("GET")
+	).Methods(http.MethodGet)
 
 	s.route(
 		"/stats",
 		s.stats(),
 		httpx.DebugPrintHook(s.logger),
-	).Methods("GET")
+	).Methods(http.MethodGet)
 
 	s.route(
 		"/queues",
 		s.queues(),
 		httpx.DebugPrintHook(s.logger),
-	).Methods("GET", "POST")
+	).Methods(http.MethodGet, http.MethodPost)
 
 	s.route(
 		"/running_config",
 		s.runningConfig(),
 		httpx.DebugPrintHook(s.logger),
-	).Methods("GET", "POST")
+	).Methods(http.MethodGet, http.MethodPost)
 
 	s.route(
 		"/startup_config",
 		s.getStartupConfig(),
 		httpx.DebugPrintHook(s.logger),
-	).Methods("GET")
+	).Methods(http.MethodGet)
 
 	s.route(
 		"/running_config/save",
 		s.copyRunCfgToStartCfg(),
 		httpx.DebugPrintHook(s.logger),
-	).Methods("PUT")
+	).Methods(http.MethodPut)
 
 	for _, qName := range s.b.Queues() {
 		s.addQueueRoute(qName, httpx.DebugPrintHook(s.logger))

@@ -129,6 +129,7 @@ func (c *Client) Ping() (*httpx.HomeResponse, error) {
 }
 
 func (c *Client) PingContext(ctx context.Context) (*httpx.HomeResponse, error) {
+	// Todo: test
 	endpoint := httpx.UrlJoin(c.Url, "/")
 	resp, err := c.get(ctx, endpoint, nil)
 	if err != nil {
@@ -153,6 +154,7 @@ func (c *Client) Stats() (*httpx.StatsResponse, error) {
 }
 
 func (c *Client) StatsContext(ctx context.Context) (*httpx.StatsResponse, error) {
+	// Todo: test
 	endpoint := httpx.UrlJoin(c.Url, "stats")
 	resp, err := c.get(ctx, endpoint, nil)
 	if err != nil {
@@ -171,25 +173,36 @@ func (c *Client) StatsContext(ctx context.Context) (*httpx.StatsResponse, error)
 }
 
 func (c *Client) Publish(queue, value string) error {
+	return c.PublishTimeout(queue, value, c.defaultTimeout)
+}
+
+func (c *Client) PublishTimeout(queue, value string, ttl time.Duration) error {
 	ctx, cancel := c.context()
 	defer cancel()
-	return c.PublishContext(ctx, queue, value)
+	return c.PublishContextTimeout(ctx, queue, value, ttl)
 }
 
 func (c *Client) PublishContext(ctx context.Context, queue, value string) error {
+	return c.PublishContextTimeout(ctx, queue, value, c.defaultTimeout)
+}
+
+func (c *Client) PublishContextTimeout(ctx context.Context, queue, value string, ttl time.Duration) error {
 	endpoint := httpx.UrlJoin(c.Url, "queues", queue)
-	resp, err := c.post(ctx, endpoint, bytes.NewBufferString(value), nil)
+	request := httpx.MessageRequest{
+		Message: value,
+		TTL:     int64(ttl.Seconds()),
+	}
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(request); err != nil {
+		return fmt.Errorf("failed to encode config: %v", err)
+	}
+	resp, err := c.post(ctx, endpoint, &buf, nil)
 	if err != nil {
 		return fmt.Errorf("failed to send value to queue %s: %v", queue, err)
 	}
 	defer resp.Body.Close()
 	if !c.ok(resp) {
 		return fmt.Errorf("[%d] failed to send value to queue %s: %v", resp.StatusCode, queue, c.checkError(resp))
-	}
-	var response httpx.StatsResponse
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
-		return fmt.Errorf("failed to decode push response: %v", err)
 	}
 	return nil
 }
@@ -211,6 +224,7 @@ func (c *Client) ConsumeContext(ctx context.Context, queue string) (string, erro
 		return "", fmt.Errorf("[%d] failed to consume value from queue %s: %v", resp.StatusCode, queue, c.checkError(resp))
 	}
 	var response httpx.QueueGetResponse
+
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode consume response: %v", err)
@@ -333,6 +347,7 @@ func (c *Client) SetRunningConfig(cfg config.Configuration) (err error) {
 }
 
 func (c *Client) SetRunningConfigContext(ctx context.Context, cfg config.Configuration) (err error) {
+	// Todo: test + make modular config (oh god) ((maybe later?))
 	endpoint := httpx.UrlJoin(c.Url, "running_config")
 
 	var buffer bytes.Buffer

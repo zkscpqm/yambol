@@ -31,8 +31,8 @@ func (s *Server) stats() HandlerFunc {
 func (s *Server) runningConfig() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]HandlerFunc{
-			"GET":  s.getRunningConfig(),
-			"POST": s.setRunningConfig(),
+			http.MethodGet:  s.getRunningConfig(),
+			http.MethodPost: s.setRunningConfig(),
 		})
 		if err != nil {
 			return s.error(w, http.StatusMethodNotAllowed, err, r.Method)

@@ -87,7 +87,7 @@ func (r QueueGetResponse) GetStatusCode() int {
 }
 
 func (r QueueGetResponse) AsJSON() ([]byte, error) {
-	return jMarshalIndent(r.Data)
+	return jMarshalIndent(r)
 }
 
 type EmptyResponse struct {

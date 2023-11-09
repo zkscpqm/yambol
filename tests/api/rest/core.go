@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	restApiTestServerPort   = 21519
-	defaultTimeoutSeconds   = 10
-	testingDefaultQueueName = "_rest_api_test_queue"
+	restApiTestServerPort = 21519
+	defaultTimeoutSeconds = 5
+	defaultTestQueueName  = "_rest_api_test_queue"
 )
 
 var (

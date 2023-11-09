@@ -3,6 +3,7 @@ package rest
 import (
 	"context"
 	"testing"
+	"time"
 	"yambol/config"
 	"yambol/pkg/transport/httpx/rest"
 
@@ -16,6 +17,7 @@ func TestAPI(t *testing.T) {
 	run(t, server)
 	testConfig(t, ctx, client)
 	testQueueManagement(t, ctx, client)
+	testQueueLogic(t, ctx, client)
 
 }
 
@@ -36,11 +38,39 @@ func testQueueManagement(t *testing.T, ctx context.Context, client *rest.Client)
 		MinLength:    12,
 		MaxLength:    1024,
 		MaxSizeBytes: 42069,
-		TTL:          defaultTimeoutSeconds * 2,
+		TTL:          defaultTimeoutSeconds,
 	}
 
 	testCreateQueue(t, ctx, client, qOpts)
 	testRemoveQueue(t, ctx, client)
+}
+
+func testQueueLogic(t *testing.T, ctx context.Context, client *rest.Client) {
+
+	testValue := "test_value"
+	testCreateQueue(t, ctx, client, config.QueueConfig{
+		MinLength:    12,
+		MaxLength:    1024,
+		MaxSizeBytes: 42069,
+		TTL:          defaultTimeoutSeconds,
+	})
+
+	//_, err := client.ConsumeContext(ctx, defaultTestQueueName)
+	//assert.Error(t, err, "was able to consume from an empty queue")
+
+	err := client.PublishContext(ctx, defaultTestQueueName, testValue)
+	assert.NoError(t, err, "failed to publish to queue")
+
+	val, err := client.ConsumeContext(ctx, defaultTestQueueName)
+	assert.NoError(t, err, "failed to consume from queue")
+	assert.Equal(t, testValue, val, "failed to consume correct value from queue")
+
+	err = client.PublishContextTimeout(ctx, defaultTestQueueName, testValue, time.Second)
+	assert.NoError(t, err, "failed to publish to queue")
+	time.Sleep(time.Second)
+	v, err := client.Consume(defaultTestQueueName)
+	assert.Equal(t, "", v, "expected empty value from empty queue")
+	assert.NoError(t, err, "no error expected by consuming from empty queue")
 }
 
 func testNoInitialStartupConfig(t *testing.T, ctx context.Context, client *rest.Client) {
@@ -74,15 +104,15 @@ func testNoInitialQueues(t *testing.T, ctx context.Context, client *rest.Client)
 }
 
 func testCreateQueue(t *testing.T, ctx context.Context, client *rest.Client, qOpts config.QueueConfig) {
-	err := client.CreateQueueContext(ctx, testingDefaultQueueName, qOpts)
+	err := client.CreateQueueContext(ctx, defaultTestQueueName, qOpts)
 	assert.NoError(t, err, "failed to create queue")
 
 	queues, err := client.GetQueuesContext(ctx)
 	assert.NoError(t, err, "failed to get queues")
-	assert.Contains(t, *queues, testingDefaultQueueName, "the queue was not created correctly")
+	assert.Contains(t, *queues, defaultTestQueueName, "the queue was not created correctly")
 
 	runCfg := config.GetRunningConfig()
-	qInfo, ok := runCfg.Broker.Queues[testingDefaultQueueName]
+	qInfo, ok := runCfg.Broker.Queues[defaultTestQueueName]
 	assert.True(t, ok, "the queue cannot be found in the running config")
 	assert.Equal(t,
 		config.QueueConfig{
@@ -97,13 +127,13 @@ func testCreateQueue(t *testing.T, ctx context.Context, client *rest.Client, qOp
 }
 
 func testRemoveQueue(t *testing.T, ctx context.Context, client *rest.Client) {
-	err := client.DeleteQueueContext(ctx, testingDefaultQueueName)
+	err := client.DeleteQueueContext(ctx, defaultTestQueueName)
 	assert.NoError(t, err, "failed to delete queue")
 
 	queues, err := client.GetQueuesContext(ctx)
 	assert.NoError(t, err, "failed to get queues")
-	assert.NotContains(t, *queues, testingDefaultQueueName, "the queue was not deleted correctly")
+	assert.NotContains(t, *queues, defaultTestQueueName, "the queue was not deleted correctly")
 
 	runCfg := config.GetRunningConfig()
-	assert.NotContains(t, runCfg.Broker.Queues, testingDefaultQueueName, "the queue is still in the running config")
+	assert.NotContains(t, runCfg.Broker.Queues, defaultTestQueueName, "the queue is still in the running config")
 }
