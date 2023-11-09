@@ -6,18 +6,28 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
+	"yambol/pkg/util"
 )
 
-var configFilePath, _ = filepath.Abs("config.json")
+var (
+	configFilePath, _ = filepath.Abs("config.json")
+)
 
-func init() {
-	val, ok := syscall.Getenv("YAMBOL_CONFIG")
-	if ok {
-		configFilePath = val
+type QueueMap map[string]QueueConfig
+
+func (qm QueueMap) toQueueState() queueStateMap {
+	rv := make(queueStateMap)
+	for k, v := range qm {
+		rv[k] = queueState{
+			minLength:    v.MinLength,
+			maxLength:    v.MaxLength,
+			maxSizeBytes: v.MaxSizeBytes,
+			ttl:          v.TTLDuration(),
+		}
 	}
+	return rv
 }
-
-type QueueMap map[string]QueueState
 
 func (qm QueueMap) Copy() QueueMap {
 	rv := make(QueueMap)
@@ -27,31 +37,56 @@ func (qm QueueMap) Copy() QueueMap {
 	return rv
 }
 
-type QueueState struct {
+func init() {
+	val, ok := syscall.Getenv("YAMBOL_CONFIG")
+	if ok {
+		configFilePath = val
+	}
+}
+
+type QueueConfig struct {
 	MinLength    int64 `json:"min_length"`
 	MaxLength    int64 `json:"max_length"`
 	MaxSizeBytes int64 `json:"max_size_bytes"`
 	TTL          int64 `json:"ttl"`
 }
 
-type BrokerState struct {
+func (qc QueueConfig) TTLDuration() time.Duration {
+	return time.Duration(qc.TTL) * time.Second
+}
+
+func (qc QueueConfig) String() string {
+	b, _ := json.MarshalIndent(qc, "", "    ")
+	return string(b)
+}
+
+func (qc QueueConfig) state() queueState {
+	return queueState{
+		minLength:    qc.MinLength,
+		maxLength:    qc.MaxLength,
+		maxSizeBytes: qc.MaxSizeBytes,
+		ttl:          qc.TTLDuration(),
+	}
+}
+
+type BrokerConfig struct {
 	DefaultMinLength    int64    `json:"default_min_length"`
 	DefaultMaxLength    int64    `json:"default_max_length"`
 	DefaultMaxSizeBytes int64    `json:"default_max_size_bytes"`
-	DefaultTTL          int64    `json:"default_ttl"`
+	DefaultTTLSeconds   int64    `json:"default_ttl"`
 	Queues              QueueMap `json:"queues"`
 }
 
-func (s BrokerState) Copy() (rv BrokerState) {
+func (s BrokerConfig) Copy() (rv BrokerConfig) {
 	q := s.Queues
 	if q == nil {
 		q = make(QueueMap)
 	}
-	return BrokerState{
+	return BrokerConfig{
 		DefaultMinLength:    s.DefaultMinLength,
 		DefaultMaxLength:    s.DefaultMaxLength,
 		DefaultMaxSizeBytes: s.DefaultMaxSizeBytes,
-		DefaultTTL:          s.DefaultTTL,
+		DefaultTTLSeconds:   s.DefaultTTLSeconds,
 		Queues:              q.Copy(),
 	}
 }
@@ -76,16 +111,52 @@ type LogConfig struct {
 }
 
 type Configuration struct {
-	DisableAutoSave bool        `json:"disable_auto_save,omitempty"`
-	API             ApiConfig   `json:"api,omitempty"`
-	Broker          BrokerState `json:"broker,omitempty"`
-	Log             LogConfig   `json:"log,omitempty"`
+	DisableAutoSave bool         `json:"disable_auto_save,omitempty"`
+	API             ApiConfig    `json:"api,omitempty"`
+	Broker          BrokerConfig `json:"broker,omitempty"`
+	Log             LogConfig    `json:"log,omitempty"`
 }
 
 func Empty() Configuration {
 	return Configuration{
-		Broker: BrokerState{
+		Broker: BrokerConfig{
 			Queues: make(QueueMap),
+		},
+	}
+}
+
+func (c Configuration) state() state {
+	return state{
+		DisableAutoSave: c.DisableAutoSave,
+		API: apiState{
+			REST: serverState{
+				Enabled:    c.API.REST.Enabled,
+				Port:       c.API.REST.Port,
+				TlsEnabled: c.API.REST.TlsEnabled,
+			},
+			GRPC: serverState{
+				Enabled:    c.API.GRPC.Enabled,
+				Port:       c.API.GRPC.Port,
+				TlsEnabled: c.API.GRPC.TlsEnabled,
+			},
+			HTTP: serverState{
+				Enabled:    c.API.HTTP.Enabled,
+				Port:       c.API.HTTP.Port,
+				TlsEnabled: c.API.HTTP.TlsEnabled,
+			},
+			Certificate: c.API.Certificate,
+			Key:         c.API.Key,
+		},
+		Broker: brokerState{
+			DefaultMinLength:    c.Broker.DefaultMinLength,
+			DefaultMaxLength:    c.Broker.DefaultMaxLength,
+			DefaultMaxSizeBytes: c.Broker.DefaultMaxSizeBytes,
+			DefaultTTL:          util.Seconds(c.Broker.DefaultTTLSeconds),
+			Queues:              c.Broker.Queues.toQueueState(),
+		},
+		Log: logState{
+			Level: c.Log.Level,
+			File:  c.Log.File,
 		},
 	}
 }
@@ -108,16 +179,7 @@ func FromFile() (*Configuration, error) {
 	return &config, nil
 }
 
-func CopyRunningConfigToStartupConfig() error {
-	f, err := os.OpenFile(configFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		return fmt.Errorf("failed to open state log file %s: %v", configFilePath, err)
-	}
-	defer f.Close()
-	return json.NewEncoder(f).Encode(_config)
-}
-
-func (c *Configuration) Copy() Configuration {
+func (c Configuration) Copy() Configuration {
 	return Configuration{
 		DisableAutoSave: c.DisableAutoSave,
 		API:             c.API,
@@ -126,7 +188,17 @@ func (c *Configuration) Copy() Configuration {
 	}
 }
 
-func (c *Configuration) String() string {
+func (c Configuration) String() string {
 	b, _ := json.MarshalIndent(c, "", "    ")
 	return string(b)
+}
+
+func GetStartupConfig() (Configuration, error) {
+	logger.Debug("Getting startup config")
+	cfg, err := FromFile()
+	if err != nil {
+		logger.Debug("Failed to get startup config from file: %v", err)
+		return Empty(), fmt.Errorf("failed to load startup config: %s", err)
+	}
+	return *cfg, nil
 }

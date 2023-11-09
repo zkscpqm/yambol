@@ -15,7 +15,7 @@ const (
 	testQueueDefaultMinLen       = int64(12)
 	testQueueDefaultMaxLen       = int64(128)
 	testQueueDefaultMaxSizeBytes = int64(1024 * 1024)
-	testQueueDefaultTTL          = time.Minute
+	testQueueDefaultTTL          = int64(1)
 )
 
 func setDefaults() {
@@ -48,14 +48,14 @@ func TestDefaults(t *testing.T) {
 	assert.Equal(t, _defaultMinLen, GetDefaultMinLen(), "failed to set new DefaultMinLen")
 	assert.Equal(t, _defaultMaxLen, GetDefaultMaxLen(), "failed to set new DefaultMaxLen")
 	assert.Equal(t, _defaultMaxSizeBytes, GetDefaultMaxSizeBytes(), "failed to set new DefaultMaxSizeBytes")
-	assert.Equal(t, _defaultTTL, GetDefaultTTL(), "failed to set new DefaultTTL")
+	assert.Equal(t, _defaultTTL, GetDefaultTTL(), "failed to set new DefaultTTLSeconds")
 
 	setDefaults()
 
 	assert.Equal(t, testQueueDefaultMinLen, GetDefaultMinLen(), "failed to set new DefaultMinLen")
 	assert.Equal(t, testQueueDefaultMaxLen, GetDefaultMaxLen(), "failed to set new DefaultMaxLen")
 	assert.Equal(t, testQueueDefaultMaxSizeBytes, GetDefaultMaxSizeBytes(), "failed to set new DefaultMaxSizeBytes")
-	assert.Equal(t, testQueueDefaultTTL, GetDefaultTTL(), "failed to set new DefaultTTL")
+	assert.Equal(t, testQueueDefaultTTL, GetDefaultTTL(), "failed to set new DefaultTTLSeconds")
 }
 
 func TestBrokerBasics(t *testing.T) {
@@ -81,7 +81,7 @@ func TestBrokerBasics(t *testing.T) {
 	assert.NoError(t, err, "failed to remove test queue")
 
 	assert.Len(t, mb.queues, 0, "broker should have 0 queues after deletion")
-	assert.Len(t, mb.Stats(), 1, "broker queue stats for deleted queue should remain")
+	assert.Len(t, mb.Stats(), 0, "broker queue stats for deleted queue remained")
 	assert.Len(t, mb.unsent, 1, "broker unsent box for deleted queue should remain")
 
 }

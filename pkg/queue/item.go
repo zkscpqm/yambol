@@ -27,8 +27,7 @@ func (i *item) dequeue() {
 
 func (i *item) TimeInQueue() time.Duration {
 	if i.tiq == nil {
-		tiq := time.Since(i.ts)
-		return tiq
+		return time.Since(i.ts)
 	}
 	return *i.tiq
 }

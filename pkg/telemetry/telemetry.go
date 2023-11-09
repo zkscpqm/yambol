@@ -44,7 +44,7 @@ func (qs *QueueStats) averageTimeInQueue() int64 {
 
 func (qs *QueueStats) MarshalJSON() ([]byte, error) {
 	// We need to prevent infinite recursion by aliasing the type,
-	// so that our MarshalJSON won't be called again.
+	// so that our AsJSON won't be called again.
 	type Alias QueueStats
 
 	// Define a new struct to hold the averageTimeInQueue value
@@ -81,6 +81,12 @@ func (c *Collector) AddQueue(queue string) *QueueStats {
 		c.qStats[queue] = qs
 	}
 	return qs
+}
+
+func (c *Collector) RemoveQueue(queue string) {
+	if _, ok := c.qStats[queue]; ok {
+		delete(c.qStats, queue)
+	}
 }
 
 func (c *Collector) Stats() map[string]QueueStats {

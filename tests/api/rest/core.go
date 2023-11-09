@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"testing"
 	"time"
+	"yambol/pkg/util"
 
 	"yambol/config"
 	"yambol/pkg/broker"
@@ -18,8 +19,9 @@ import (
 )
 
 const (
-	restApiTestServerPort = 21519
-	defaultTimeout        = 10 * time.Second
+	restApiTestServerPort   = 21519
+	defaultTimeoutSeconds   = 10
+	testingDefaultQueueName = "_rest_api_test_queue"
 )
 
 var (
@@ -32,11 +34,11 @@ var (
 				TlsEnabled: false,
 			},
 		},
-		Broker: config.BrokerState{
+		Broker: config.BrokerConfig{
 			DefaultMinLength:    10,
 			DefaultMaxLength:    1000,
 			DefaultMaxSizeBytes: 1000,
-			DefaultTTL:          10,
+			DefaultTTLSeconds:   10,
 			Queues:              config.QueueMap{},
 		},
 		Log: config.LogConfig{
@@ -57,8 +59,8 @@ func testInit(t *testing.T) (*rest.Server, *rest.Client, context.Context, contex
 		logger,
 	)
 
-	client := rest.NewClient(fmt.Sprintf("http://0.0.0.0:%d", restApiTestServerPort), http.DefaultClient, defaultTimeout)
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	client := rest.NewClient(fmt.Sprintf("http://0.0.0.0:%d", restApiTestServerPort), http.DefaultClient, util.Seconds(defaultTimeoutSeconds))
+	ctx, cancel := context.WithTimeout(context.Background(), util.Seconds(defaultTimeoutSeconds))
 	return server, client, ctx, cancel
 }
 
@@ -71,7 +73,7 @@ func run(t *testing.T, s *rest.Server) {
 	time.Sleep(time.Millisecond * 10)
 }
 
-func removeConfigFile(t *testing.T) (err error) {
+func removeConfigFile() (err error) {
 	// Check if "config.json" exists in the current directory.
 	configPath := "config.json"
 	if _, err = os.Stat(configPath); err == nil {
@@ -101,7 +103,7 @@ func reset(t *testing.T) {
 	if !matched {
 		t.Fatal("FATAL: Test running in a non-test directory")
 	}
-	if err = removeConfigFile(t); err != nil {
+	if err = removeConfigFile(); err != nil {
 		t.Fatalf("Failed to remove config.json file from REST API test dir: %v", err)
 	}
 }

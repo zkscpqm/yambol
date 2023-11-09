@@ -14,7 +14,7 @@ func jMarshalIndent(v interface{}) ([]byte, error) {
 
 type Response interface {
 	GetStatusCode() int
-	JsonMarshalIndent() ([]byte, error)
+	AsJSON() ([]byte, error)
 }
 
 type ErrorResponse struct {
@@ -26,7 +26,7 @@ func (r ErrorResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r ErrorResponse) JsonMarshalIndent() ([]byte, error) {
+func (r ErrorResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
@@ -40,7 +40,7 @@ func (r HomeResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r HomeResponse) JsonMarshalIndent() ([]byte, error) {
+func (r HomeResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
@@ -53,7 +53,7 @@ func (r ConfigResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r ConfigResponse) JsonMarshalIndent() ([]byte, error) {
+func (r ConfigResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r.Config)
 }
 
@@ -63,7 +63,7 @@ func (r StatsResponse) GetStatusCode() int {
 	return http.StatusOK
 }
 
-func (r StatsResponse) JsonMarshalIndent() ([]byte, error) {
+func (r StatsResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
@@ -73,7 +73,7 @@ func (r QueuesGetResponse) GetStatusCode() int {
 	return 200
 }
 
-func (r QueuesGetResponse) JsonMarshalIndent() ([]byte, error) {
+func (r QueuesGetResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
@@ -86,7 +86,7 @@ func (r QueueGetResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r QueueGetResponse) JsonMarshalIndent() ([]byte, error) {
+func (r QueueGetResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r.Data)
 }
 
@@ -98,6 +98,6 @@ func (r EmptyResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r EmptyResponse) JsonMarshalIndent() ([]byte, error) {
+func (r EmptyResponse) AsJSON() ([]byte, error) {
 	return []byte{}, nil
 }

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"yambol/config"
 
-	"yambol/pkg/broker"
 	"yambol/pkg/queue"
 	"yambol/pkg/transport/httpx"
 )
@@ -15,7 +15,7 @@ func (s *Server) queues() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]HandlerFunc{
 			"GET":  s.getQueues(),
-			"POST": s.postQueues(),
+			"POST": s.addNewQueue(),
 		})
 		if err != nil {
 			return s.error(w, http.StatusMethodNotAllowed, err)
@@ -31,15 +31,7 @@ func (s *Server) getQueues() HandlerFunc {
 	}
 }
 
-func (s *Server) addQueueRoute(qName string, hooks ...httpx.Middleware) {
-	s.route(
-		fmt.Sprintf("/queues/%s", qName),
-		s.queue(),
-		hooks...,
-	).Methods("GET", "POST")
-}
-
-func (s *Server) postQueues() HandlerFunc {
+func (s *Server) addNewQueue() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qInfo := httpx.QueuesPostRequest{}
 
@@ -53,11 +45,11 @@ func (s *Server) postQueues() HandlerFunc {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("the queue name `%s` is not valid", qInfo.Name))
 		}
 
-		if err := s.b.AddQueue(qInfo.Name, broker.QueueOptions{
-			MinLen:       qInfo.MinLength,
-			MaxLen:       qInfo.MaxLength,
+		if err := s.b.AddQueue(qInfo.Name, config.QueueConfig{
+			MinLength:    qInfo.MinLength,
+			MaxLength:    qInfo.MaxLength,
 			MaxSizeBytes: qInfo.MaxSizeBytes,
-			DefaultTTL:   qInfo.TTLSeconds(),
+			TTL:          qInfo.TTL,
 		}); err != nil {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to create queue `%s`: %v", qInfo.Name, err))
 		}
@@ -70,8 +62,9 @@ func (s *Server) postQueues() HandlerFunc {
 func (s *Server) queue() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		target, err := resolveHTTPMethodTarget(r, map[string]HandlerFunc{
-			"GET":  s.getQueue(),
-			"POST": s.postQueue(),
+			"GET":    s.consumeFromQueue(),
+			"POST":   s.sendMessageToQueue(),
+			"DELETE": s.deleteQueue(),
 		})
 		if err != nil {
 			return s.error(w, http.StatusMethodNotAllowed, err)
@@ -80,7 +73,7 @@ func (s *Server) queue() HandlerFunc {
 	}
 }
 
-func (s *Server) getQueue() HandlerFunc {
+func (s *Server) consumeFromQueue() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
@@ -98,7 +91,7 @@ func (s *Server) getQueue() HandlerFunc {
 	}
 }
 
-func (s *Server) postQueue() HandlerFunc {
+func (s *Server) sendMessageToQueue() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
@@ -106,7 +99,7 @@ func (s *Server) postQueue() HandlerFunc {
 			return s.error(w, http.StatusNotFound, fmt.Errorf("queue `%s` does not exist", qName))
 		}
 
-		body := httpx.YambolMessageRequest{}
+		body := httpx.MessageRequest{}
 
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to decode request body: %v", err))
@@ -118,4 +111,28 @@ func (s *Server) postQueue() HandlerFunc {
 
 		return s.respond(w, httpx.EmptyResponse{StatusCode: http.StatusOK})
 	}
+}
+
+func (s *Server) deleteQueue() HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
+		qName := r.URL.Path[len("/queues/"):]
+
+		if !s.b.QueueExists(qName) {
+			return s.error(w, http.StatusNotFound, fmt.Errorf("queue `%s` does not exist", qName))
+		}
+
+		if err := s.b.RemoveQueue(qName); err != nil {
+			return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to remove queue `%s`: %v", qName, err))
+		}
+
+		return s.respond(w, httpx.EmptyResponse{StatusCode: http.StatusOK})
+	}
+}
+
+func (s *Server) addQueueRoute(qName string, hooks ...httpx.Middleware) {
+	s.route(
+		fmt.Sprintf("/queues/%s", qName),
+		s.queue(),
+		hooks...,
+	).Methods("GET", "POST", "DELETE")
 }

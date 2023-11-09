@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"yambol/config"
-	"yambol/pkg/broker"
 	"yambol/pkg/transport/httpx"
 )
 
@@ -90,6 +89,14 @@ func (c *Client) put(ctx context.Context, url string, body io.Reader, headers ma
 	return c.do(ctx, req, headers)
 }
 
+func (c *Client) delete(ctx context.Context, url string, headers map[string]string) (resp *http.Response, err error) {
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build DELETE request: %v", err)
+	}
+	return c.do(ctx, req, headers)
+}
+
 func (c *Client) do(ctx context.Context, req *http.Request, headers map[string]string) (resp *http.Response, err error) {
 	if headers != nil {
 		for k, v := range headers {
@@ -163,13 +170,13 @@ func (c *Client) StatsContext(ctx context.Context) (*httpx.StatsResponse, error)
 	return &response, nil
 }
 
-func (c *Client) Push(queue, value string) error {
+func (c *Client) Publish(queue, value string) error {
 	ctx, cancel := c.context()
 	defer cancel()
-	return c.PushContext(ctx, queue, value)
+	return c.PublishContext(ctx, queue, value)
 }
 
-func (c *Client) PushContext(ctx context.Context, queue, value string) error {
+func (c *Client) PublishContext(ctx context.Context, queue, value string) error {
 	endpoint := httpx.UrlJoin(c.Url, "queues", queue)
 	resp, err := c.post(ctx, endpoint, bytes.NewBufferString(value), nil)
 	if err != nil {
@@ -187,13 +194,37 @@ func (c *Client) PushContext(ctx context.Context, queue, value string) error {
 	return nil
 }
 
-func (c *Client) Queues() (*httpx.QueuesGetResponse, error) {
+func (c *Client) Consume(queue string) (string, error) {
 	ctx, cancel := c.context()
 	defer cancel()
-	return c.QueuesContext(ctx)
+	return c.ConsumeContext(ctx, queue)
 }
 
-func (c *Client) QueuesContext(ctx context.Context) (*httpx.QueuesGetResponse, error) {
+func (c *Client) ConsumeContext(ctx context.Context, queue string) (string, error) {
+	endpoint := httpx.UrlJoin(c.Url, "queues", queue)
+	resp, err := c.get(ctx, endpoint, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to consume from queue %s: %v", queue, err)
+	}
+	defer resp.Body.Close()
+	if !c.ok(resp) {
+		return "", fmt.Errorf("[%d] failed to consume value from queue %s: %v", resp.StatusCode, queue, c.checkError(resp))
+	}
+	var response httpx.QueueGetResponse
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode consume response: %v", err)
+	}
+	return response.Data, nil
+}
+
+func (c *Client) GetQueues() (*httpx.QueuesGetResponse, error) {
+	ctx, cancel := c.context()
+	defer cancel()
+	return c.GetQueuesContext(ctx)
+}
+
+func (c *Client) GetQueuesContext(ctx context.Context) (*httpx.QueuesGetResponse, error) {
 
 	endpoint := httpx.UrlJoin(c.Url, "queues")
 	resp, err := c.get(ctx, endpoint, nil)
@@ -212,13 +243,10 @@ func (c *Client) QueuesContext(ctx context.Context) (*httpx.QueuesGetResponse, e
 	return &queues, nil
 }
 
-func (c *Client) CreateQueueContext(ctx context.Context, queue string, opts broker.QueueOptions) error {
+func (c *Client) CreateQueueContext(ctx context.Context, queue string, opts config.QueueConfig) error {
 	qInfo := httpx.QueuesPostRequest{
-		Name:         queue,
-		MinLength:    opts.MinLen,
-		MaxLength:    opts.MaxLen,
-		MaxSizeBytes: opts.MaxSizeBytes,
-		TTL:          int64(opts.DefaultTTL.Seconds()),
+		Name:        queue,
+		QueueConfig: opts,
 	}
 	endpoint := httpx.UrlJoin(c.Url, "queues")
 	b, err := json.Marshal(qInfo)
@@ -235,7 +263,26 @@ func (c *Client) CreateQueueContext(ctx context.Context, queue string, opts brok
 	return nil
 }
 
-func (c *Client) CreateQueue(queue string, opts broker.QueueOptions) error {
+func (c *Client) DeleteQueue(queue string) error {
+	ctx, cancel := c.context()
+	defer cancel()
+	return c.DeleteQueueContext(ctx, queue)
+}
+
+func (c *Client) DeleteQueueContext(ctx context.Context, queue string) error {
+
+	endpoint := httpx.UrlJoin(c.Url, "queues", queue)
+	resp, err := c.delete(ctx, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("failed to delete queue %s: %v", queue, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("[%d] failed to delete queue %s: %v", resp.StatusCode, queue, c.checkError(resp))
+	}
+	return nil
+}
+
+func (c *Client) CreateQueue(queue string, opts config.QueueConfig) error {
 	ctx, cancel := c.context()
 	defer cancel()
 	return c.CreateQueueContext(ctx, queue, opts)

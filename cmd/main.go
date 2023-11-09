@@ -10,7 +10,6 @@ import (
 	"yambol/pkg/broker"
 	"yambol/pkg/transport/grpcx"
 	"yambol/pkg/transport/httpx/rest"
-	"yambol/pkg/util"
 	"yambol/pkg/util/log"
 )
 
@@ -44,16 +43,11 @@ func main() {
 	broker.SetDefaultMinLen(cfg.Broker.DefaultMinLength)
 	broker.SetDefaultMaxLen(cfg.Broker.DefaultMaxLength)
 	broker.SetDefaultMaxSizeBytes(cfg.Broker.DefaultMaxSizeBytes)
-	broker.SetDefaultTTL(util.Seconds(cfg.Broker.DefaultTTL))
+	broker.SetDefaultTTL(cfg.Broker.DefaultTTLSeconds)
 
 	b := broker.New(logger)
 	for qName, qCfg := range cfg.Broker.Queues {
-		if err = b.AddQueue(qName, broker.QueueOptions{
-			MinLen:       qCfg.MinLength,
-			MaxLen:       qCfg.MaxLength,
-			MaxSizeBytes: qCfg.MaxSizeBytes,
-			DefaultTTL:   util.Seconds(qCfg.TTL),
-		}); err != nil {
+		if err = b.AddQueue(qName, qCfg); err != nil {
 			logger.Error("failed to add queue: %v", err)
 		}
 	}

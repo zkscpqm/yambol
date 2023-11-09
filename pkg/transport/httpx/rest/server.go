@@ -136,7 +136,7 @@ func (s *Server) respond(w http.ResponseWriter, response httpx.Response) httpx.R
 		w.Header().Set(k, v)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if b, err := response.JsonMarshalIndent(); err != nil {
+	if b, err := response.AsJSON(); err != nil {
 		return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to marshal response: %v", err))
 	} else {
 		w.WriteHeader(response.GetStatusCode())

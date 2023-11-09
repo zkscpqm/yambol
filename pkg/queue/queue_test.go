@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 	"time"
+	"yambol/config"
 	"yambol/pkg/telemetry"
 	"yambol/pkg/util"
 
@@ -17,12 +18,18 @@ const (
 	testQueueDefaultMinLen  = 10
 	testQueueDefaultMaxLen  = 10000
 	testQueueDefaultMaxSize = 1024 * 10 // 10KB
-	testQueueDefaultTTL     = time.Second * 1
+	testQueueDefaultTTL     = 1
 )
 
 func queueSetUp() (*Queue, *telemetry.QueueStats) {
 	qs := &telemetry.QueueStats{}
-	return New(testQueueDefaultMinLen, testQueueDefaultMaxLen, testQueueDefaultMaxSize, testQueueDefaultTTL, qs), qs
+	return New(
+		config.QueueConfig{
+			MinLength:    testQueueDefaultMinLen,
+			MaxLength:    testQueueDefaultMaxLen,
+			MaxSizeBytes: testQueueDefaultMaxSize,
+			TTL:          testQueueDefaultTTL,
+		}, qs), qs
 }
 
 func stringRange(n int) (rv []string) {
@@ -47,7 +54,7 @@ func TestQueueBasicDefaultOps(t *testing.T) {
 	for i := 0; i < testQueueDefaultMaxLen; i++ {
 		itm := q.peek()
 		assert.NotNil(t, itm, "nothing in queue")
-		assert.Equal(t, testQueueDefaultTTL, itm.ttl)
+		assert.Equal(t, util.Seconds(testQueueDefaultTTL), itm.ttl)
 		val, err = q.Pop()
 		assert.NoError(t, err, "failed to pop", i)
 		assert.Equal(t, strconv.Itoa(i), val, "mismatched value popped", i, val)
@@ -62,7 +69,7 @@ func TestQueueBasicDefaultOps(t *testing.T) {
 
 	itm := q.peek()
 	assert.NotNil(t, itm, "peek returned nil")
-	assert.Equal(t, testQueueDefaultTTL, itm.ttl)
+	assert.Equal(t, util.Seconds(testQueueDefaultTTL), itm.ttl)
 	_, err = q.Pop()
 	assert.NoError(t, err, "failed to pop nil ttl value")
 
@@ -97,7 +104,7 @@ func TestQueueExpiration(t *testing.T) {
 	assert.NoError(t, err, "failed to push")
 	ptr := q.peek()
 	assert.NotNil(t, ptr, "peek returned nil")
-	time.Sleep(util.LittleLongerThan(testQueueDefaultTTL))
+	time.Sleep(util.LittleLongerThan(util.Seconds(testQueueDefaultTTL)))
 	_, err = q.Pop()
 	assert.Error(t, err, "popped from empty queue")
 	assert.Equal(t, int64(0), qs.Processed, "mismatched number of processed items")
