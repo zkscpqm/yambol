@@ -3,6 +3,7 @@ package queue
 import (
 	"sync"
 	"time"
+	"yambol/config"
 
 	"yambol/pkg/telemetry"
 )
@@ -17,18 +18,18 @@ type Queue struct {
 	stats        *telemetry.QueueStats
 }
 
-func New(minLen, maxLen, maxSizeBytes int64, defaultTTL time.Duration, stats *telemetry.QueueStats) *Queue {
-	if minLen <= 0 {
-		minLen = 1
+func New(cfg config.QueueConfig, stats *telemetry.QueueStats) *Queue {
+	if cfg.MinLength <= 0 {
+		cfg.MinLength = 1
 	}
 	return &Queue{
 		stats:        stats,
 		mx:           &sync.RWMutex{},
-		minLen:       minLen,
-		maxLen:       maxLen,
-		maxSizeBytes: maxSizeBytes,
-		items:        make([]item, 0, minLen),
-		factory:      newItemFactory(defaultTTL),
+		minLen:       cfg.MinLength,
+		maxLen:       cfg.MaxLength,
+		maxSizeBytes: cfg.MaxSizeBytes,
+		items:        make([]item, 0, cfg.MinLength),
+		factory:      newItemFactory(cfg.TTLDuration()),
 	}
 }
 

@@ -21,7 +21,11 @@ jobs:
           go-version: '1.20'
 
       - name: Run Unit Tests
-        run: go test -v ./...
+        run: go test -v ./pkg/...
+
+      - name: Run REST API Tests
+        working-directory: ./tests/api/rest/
+        run: go test -v ./
 
   build-and-release:
     if: github.event_name == 'push'

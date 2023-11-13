@@ -1,9 +1,6 @@
 package broker
 
 import (
-	"fmt"
-	"time"
-
 	"yambol/config"
 )
 
@@ -11,7 +8,7 @@ var (
 	defaultMinLen       = int64(100)
 	defaultMaxLen       = int64(1024 * 1024 * 1024)
 	defaultMaxSizeBytes = int64(1024 * 1024 * 1024) // 1GB
-	defaultTTL          = time.Duration(0)
+	defaultTTLSeconds   = int64(0)
 )
 
 func setLTE0(value, default_ int64, target *int64) int64 {
@@ -34,12 +31,12 @@ func SetDefaultMaxSizeBytes(value int64) {
 	config.SetDefaultMaxSizeBytes(setLTE0(value, 1024*1024*1024, &defaultMaxSizeBytes))
 }
 
-func SetDefaultTTL(value time.Duration) {
+func SetDefaultTTL(value int64) {
 	if value < 0 {
-		value = time.Duration(0)
+		value = 0
 	}
-	defaultTTL = value
-	config.SetDefaultTTL(value.Nanoseconds())
+	defaultTTLSeconds = value
+	config.SetDefaultTTL(value)
 }
 
 func GetDefaultMinLen() int64 {
@@ -54,8 +51,8 @@ func GetDefaultMaxSizeBytes() int64 {
 	return defaultMaxSizeBytes
 }
 
-func GetDefaultTTL() time.Duration {
-	return defaultTTL
+func GetDefaultTTL() int64 {
+	return defaultTTLSeconds
 }
 
 func determineMinLen(value int64) int64 {
@@ -79,21 +76,9 @@ func determineMaxSizeBytes(value int64) int64 {
 	return defaultMaxSizeBytes
 }
 
-func determineTTL(value time.Duration) time.Duration {
+func determineTTL(value int64) int64 {
 	if value > 0 {
 		return value
 	}
-	return defaultTTL
-}
-
-type QueueOptions struct {
-	MinLen       int64
-	MaxLen       int64
-	MaxSizeBytes int64
-	DefaultTTL   time.Duration
-}
-
-func (opts QueueOptions) String() string {
-	return fmt.Sprintf("MinLen: %d, MaxLen: %d, MaxSizeBytes: %d, DefaultTTL: %s",
-		opts.MinLen, opts.MaxLen, opts.MaxSizeBytes, opts.DefaultTTL)
+	return defaultTTLSeconds
 }

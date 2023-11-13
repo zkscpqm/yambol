@@ -26,7 +26,7 @@ func TestItemExpiry(t *testing.T) {
 	*i.tiq = halfTTL // simulate being in queue. Better than sleeping...
 	assert.False(t, i.Expired(), "item should not have expired yet")
 
-	*i.tiq += halfTTL + 1 // simulate waiting util TTL expired
+	*i.tiq += halfTTL + 1 // simulate waiting util ttl expired
 	assert.True(t, i.Expired(), "item should have expired")
 }
 
@@ -49,7 +49,7 @@ func TestItemFactory(t *testing.T) {
 	f := newItemFactory(testItemDefaultTTL)
 	i := f.newDefaultItem("test")
 	assert.Contains(t, f.uidMap, i.uid, "could not find item UID in factory UID Map")
-	assert.Equal(t, testItemDefaultTTL, i.ttl, "item TTL not set correctly by factory")
+	assert.Equal(t, testItemDefaultTTL, i.ttl, "item ttl not set correctly by factory")
 	f.removeUid(i.uid)
 	assert.NotContains(t, f.uidMap, i.uid, "found item UID in factory UID Map after delete")
 

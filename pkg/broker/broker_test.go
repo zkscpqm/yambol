@@ -15,7 +15,7 @@ const (
 	testQueueDefaultMinLen       = int64(12)
 	testQueueDefaultMaxLen       = int64(128)
 	testQueueDefaultMaxSizeBytes = int64(1024 * 1024)
-	testQueueDefaultTTL          = time.Minute
+	testQueueDefaultTTL          = int64(1)
 )
 
 func setDefaults() {
@@ -48,24 +48,23 @@ func TestDefaults(t *testing.T) {
 	assert.Equal(t, _defaultMinLen, GetDefaultMinLen(), "failed to set new DefaultMinLen")
 	assert.Equal(t, _defaultMaxLen, GetDefaultMaxLen(), "failed to set new DefaultMaxLen")
 	assert.Equal(t, _defaultMaxSizeBytes, GetDefaultMaxSizeBytes(), "failed to set new DefaultMaxSizeBytes")
-	assert.Equal(t, _defaultTTL, GetDefaultTTL(), "failed to set new DefaultTTL")
+	assert.Equal(t, _defaultTTL, GetDefaultTTL(), "failed to set new DefaultTTLSeconds")
 
 	setDefaults()
 
 	assert.Equal(t, testQueueDefaultMinLen, GetDefaultMinLen(), "failed to set new DefaultMinLen")
 	assert.Equal(t, testQueueDefaultMaxLen, GetDefaultMaxLen(), "failed to set new DefaultMaxLen")
 	assert.Equal(t, testQueueDefaultMaxSizeBytes, GetDefaultMaxSizeBytes(), "failed to set new DefaultMaxSizeBytes")
-	assert.Equal(t, testQueueDefaultTTL, GetDefaultTTL(), "failed to set new DefaultTTL")
+	assert.Equal(t, testQueueDefaultTTL, GetDefaultTTL(), "failed to set new DefaultTTLSeconds")
 }
 
 func TestBrokerBasics(t *testing.T) {
 
 	setDefaults()
 
-	mb, err := New(testLogger())
-	assert.NoError(t, err, "failed to create broker")
+	mb := New(testLogger())
 	assert.Empty(t, mb.queues, "broker should have no queues by default")
-	err = mb.RemoveQueue("test")
+	err := mb.RemoveQueue("test")
 	assert.Error(t, err, "removed non existent queue")
 	assert.False(t, mb.QueueExists("test"), "broker should have no queues by default")
 	err = mb.AddDefaultQueue("test")
@@ -82,7 +81,7 @@ func TestBrokerBasics(t *testing.T) {
 	assert.NoError(t, err, "failed to remove test queue")
 
 	assert.Len(t, mb.queues, 0, "broker should have 0 queues after deletion")
-	assert.Len(t, mb.Stats(), 1, "broker queue stats for deleted queue should remain")
+	assert.Len(t, mb.Stats(), 0, "broker queue stats for deleted queue remained")
 	assert.Len(t, mb.unsent, 1, "broker unsent box for deleted queue should remain")
 
 }
@@ -91,10 +90,9 @@ func TestBrokerPublishConsume(t *testing.T) {
 
 	setDefaults()
 
-	mb, err := New(testLogger())
-	assert.NoError(t, err, "failed to create broker")
+	mb := New(testLogger())
 
-	_, err = mb.Consume("test")
+	_, err := mb.Consume("test")
 	assert.Error(t, err, "expected to fail to consume from non existent queue")
 
 	err = mb.AddDefaultQueue("test")
@@ -129,10 +127,9 @@ func TestBrokerBroadcast(t *testing.T) {
 
 	setDefaults()
 
-	mb, err := New(testLogger())
-	assert.NoError(t, err, "failed to create broker")
+	mb := New(testLogger())
 
-	err = mb.AddDefaultQueue("test1")
+	err := mb.AddDefaultQueue("test1")
 	assert.NoError(t, err, "failed to add test1 queue")
 
 	err = mb.AddDefaultQueue("test2")

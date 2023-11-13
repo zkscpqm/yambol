@@ -5,17 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"yambol/config"
+	"yambol/pkg/util"
 
-	"yambol/pkg/broker"
 	"yambol/pkg/queue"
 	"yambol/pkg/transport/httpx"
 )
 
-func (s *YambolRESTServer) queues() yambolHandlerFunc {
+func (s *Server) queues() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
-		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
-			"GET":  s.getQueues(),
-			"POST": s.postQueues(),
+		target, err := resolveHTTPMethodTarget(r, map[string]HandlerFunc{
+			http.MethodGet:  s.getQueues(),
+			http.MethodPost: s.addNewQueue(),
 		})
 		if err != nil {
 			return s.error(w, http.StatusMethodNotAllowed, err)
@@ -24,22 +25,14 @@ func (s *YambolRESTServer) queues() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolRESTServer) getQueues() yambolHandlerFunc {
+func (s *Server) getQueues() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		resp := httpx.QueuesGetResponse(s.b.Stats())
 		return s.respond(w, resp)
 	}
 }
 
-func (s *YambolRESTServer) addQueueRoute(qName string, hooks ...httpx.Middleware) {
-	s.route(
-		fmt.Sprintf("/queues/%s", qName),
-		s.queue(),
-		hooks...,
-	).Methods("GET", "POST")
-}
-
-func (s *YambolRESTServer) postQueues() yambolHandlerFunc {
+func (s *Server) addNewQueue() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qInfo := httpx.QueuesPostRequest{}
 
@@ -53,11 +46,11 @@ func (s *YambolRESTServer) postQueues() yambolHandlerFunc {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("the queue name `%s` is not valid", qInfo.Name))
 		}
 
-		if err := s.b.AddQueue(qInfo.Name, broker.QueueOptions{
-			MinLen:       qInfo.MinLength,
-			MaxLen:       qInfo.MaxLength,
+		if err := s.b.AddQueue(qInfo.Name, config.QueueConfig{
+			MinLength:    qInfo.MinLength,
+			MaxLength:    qInfo.MaxLength,
 			MaxSizeBytes: qInfo.MaxSizeBytes,
-			DefaultTTL:   qInfo.TTLSeconds(),
+			TTL:          qInfo.TTL,
 		}); err != nil {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to create queue `%s`: %v", qInfo.Name, err))
 		}
@@ -67,11 +60,12 @@ func (s *YambolRESTServer) postQueues() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolRESTServer) queue() yambolHandlerFunc {
+func (s *Server) queue() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
-		target, err := resolveHTTPMethodTarget(r, map[string]yambolHandlerFunc{
-			"GET":  s.getQueue(),
-			"POST": s.postQueue(),
+		target, err := resolveHTTPMethodTarget(r, map[string]HandlerFunc{
+			http.MethodGet:    s.consumeFromQueue(),
+			http.MethodPost:   s.sendMessageToQueue(),
+			http.MethodDelete: s.deleteQueue(),
 		})
 		if err != nil {
 			return s.error(w, http.StatusMethodNotAllowed, err)
@@ -80,7 +74,7 @@ func (s *YambolRESTServer) queue() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolRESTServer) getQueue() yambolHandlerFunc {
+func (s *Server) consumeFromQueue() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
@@ -89,7 +83,6 @@ func (s *YambolRESTServer) getQueue() yambolHandlerFunc {
 		}
 
 		message, err := s.b.Consume(qName)
-
 		if err != nil && !errors.Is(err, queue.ErrQueueEmpty) {
 			return s.error(w, http.StatusInternalServerError, err)
 		}
@@ -98,7 +91,7 @@ func (s *YambolRESTServer) getQueue() yambolHandlerFunc {
 	}
 }
 
-func (s *YambolRESTServer) postQueue() yambolHandlerFunc {
+func (s *Server) sendMessageToQueue() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
@@ -106,16 +99,48 @@ func (s *YambolRESTServer) postQueue() yambolHandlerFunc {
 			return s.error(w, http.StatusNotFound, fmt.Errorf("queue `%s` does not exist", qName))
 		}
 
-		body := httpx.YambolMessageRequest{}
+		var (
+			body httpx.MessageRequest
+			err  error
+		)
 
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if err = json.NewDecoder(r.Body).Decode(&body); err != nil {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to decode request body: %v", err))
 		}
-
-		if err := s.b.Publish(body.Message, qName); err != nil {
+		ttl := util.Seconds(body.TTL)
+		if ttl == 0 {
+			err = s.b.Publish(body.Message, qName)
+		} else {
+			err = s.b.PublishWithTTL(body.Message, &ttl, qName)
+		}
+		if err != nil {
 			return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to publish message: %v", err))
 		}
 
 		return s.respond(w, httpx.EmptyResponse{StatusCode: http.StatusOK})
 	}
+}
+
+func (s *Server) deleteQueue() HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
+		qName := r.URL.Path[len("/queues/"):]
+
+		if !s.b.QueueExists(qName) {
+			return s.error(w, http.StatusNotFound, fmt.Errorf("queue `%s` does not exist", qName))
+		}
+
+		if err := s.b.RemoveQueue(qName); err != nil {
+			return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to remove queue `%s`: %v", qName, err))
+		}
+
+		return s.respond(w, httpx.EmptyResponse{StatusCode: http.StatusOK})
+	}
+}
+
+func (s *Server) addQueueRoute(qName string, hooks ...httpx.Middleware) {
+	s.route(
+		fmt.Sprintf("/queues/%s", qName),
+		s.queue(),
+		hooks...,
+	).Methods(http.MethodGet, http.MethodPost, http.MethodDelete)
 }

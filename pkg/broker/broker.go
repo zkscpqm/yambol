@@ -19,28 +19,29 @@ type MessageBroker struct {
 	logger    *log.Logger
 }
 
-func New(logger *log.Logger) (*MessageBroker, error) {
+func New(logger *log.Logger) *MessageBroker {
 	return &MessageBroker{
 		queues: make(map[string]*queue.Queue),
 		unsent: make(map[string][]string),
 		stats:  telemetry.NewCollector(),
 		logger: logger.NewFrom("BROKER"),
-	}, nil
+	}
 }
 
 func (mb *MessageBroker) AddDefaultQueue(queueName string) error {
 	return mb.AddQueue(queueName,
-		QueueOptions{
-			GetDefaultMinLen(),
-			GetDefaultMaxLen(),
-			GetDefaultMaxSizeBytes(),
-			GetDefaultTTL(),
+		config.QueueConfig{
+			MinLength:    GetDefaultMinLen(),
+			MaxLength:    GetDefaultMaxLen(),
+			MaxSizeBytes: GetDefaultMaxSizeBytes(),
+			TTL:          GetDefaultTTL(),
 		},
 	)
 }
 
-func (mb *MessageBroker) AddQueue(queueName string, opts QueueOptions) error {
-	mb.logger.Info("Trying to add queue `%s`: %s", queueName, opts)
+func (mb *MessageBroker) AddQueue(queueName string, cfg config.QueueConfig) error {
+	mb.logger.Info("Trying to add queue `%s`: %s", queueName, cfg)
+
 	_, exists := mb.queues[queueName]
 	if exists {
 		mb.logger.Error("failed to add queue `%s` as it already exists", queueName)
@@ -48,16 +49,15 @@ func (mb *MessageBroker) AddQueue(queueName string, opts QueueOptions) error {
 	}
 	queueStats := mb.stats.AddQueue(queueName)
 
-	minLen := determineMinLen(opts.MinLen)
-	maxLen := determineMaxLen(opts.MaxLen)
-	maxSizeBytes := determineMaxSizeBytes(opts.MaxSizeBytes)
-	ttl := determineTTL(opts.DefaultTTL)
+	cfg.MinLength = determineMinLen(cfg.MinLength)
+	cfg.MaxLength = determineMaxLen(cfg.MaxLength)
+	cfg.MaxSizeBytes = determineMaxSizeBytes(cfg.MaxSizeBytes)
+	cfg.TTL = determineTTL(cfg.TTL)
 
-	mb.logger.Debug("Adding queue `%s` with determined MinLen=%d, MaxLen=%d, MaxSizeBytes=%d, TTL=%s",
-		queueName, minLen, maxLen, maxSizeBytes, ttl.String())
-	mb.queues[queueName] = queue.New(minLen, maxLen, maxSizeBytes, ttl, queueStats)
+	mb.logger.Debug("Adding queue `%s` with determined: %s", queueName, cfg)
+	mb.queues[queueName] = queue.New(cfg, queueStats)
 	mb.unsent[queueName] = make([]string, 0)
-	config.CreateQueue(queueName, minLen, maxLen, maxSizeBytes, ttl)
+	config.CreateQueue(queueName, cfg)
 	mb.logger.Info("Queue `%s` created", queueName)
 	return nil
 }
@@ -151,6 +151,7 @@ func (mb *MessageBroker) RemoveQueue(queueName string) error {
 		return err
 	}
 	delete(mb.queues, queueName)
+	mb.stats.RemoveQueue(queueName)
 	config.DeleteQueue(queueName)
 	// TODO: Save the queue messages?
 	mb.logger.Info("Queue `%s` removed", queueName)

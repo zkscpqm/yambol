@@ -29,7 +29,7 @@ func TestQueueStatsAPI(t *testing.T) {
 }
 
 func TestQueueStatsEnrichment(t *testing.T) {
-	qs := QueueStats{}
+	var qs QueueStats
 	assert.Zero(t, qs.averageTimeInQueue(), "initial stats should have 0 average")
 	qs.Process(time.Second)
 	assert.Equal(t, time.Second.Milliseconds(), qs.averageTimeInQueue(), "should have processed 1 item so avg == item tiq")

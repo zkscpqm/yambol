@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"yambol/config"
+	"yambol/pkg/transport/model"
 
 	"yambol/pkg/telemetry"
 )
@@ -14,7 +15,7 @@ func jMarshalIndent(v interface{}) ([]byte, error) {
 
 type Response interface {
 	GetStatusCode() int
-	JsonMarshalIndent() ([]byte, error)
+	AsJSON() ([]byte, error)
 }
 
 type ErrorResponse struct {
@@ -26,44 +27,43 @@ func (r ErrorResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r ErrorResponse) JsonMarshalIndent() ([]byte, error) {
+func (r ErrorResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
-type YambolHomeResponse struct {
+type HomeResponse struct {
 	StatusCode int
-	Uptime     string `json:"uptime"`
-	Version    string `json:"version"`
+	model.BasicInfo
 }
 
-func (r YambolHomeResponse) GetStatusCode() int {
+func (r HomeResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r YambolHomeResponse) JsonMarshalIndent() ([]byte, error) {
+func (r HomeResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
-type YambolConfigResponse struct {
+type ConfigResponse struct {
 	StatusCode int
 	Config     config.Configuration
 }
 
-func (r YambolConfigResponse) GetStatusCode() int {
+func (r ConfigResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r YambolConfigResponse) JsonMarshalIndent() ([]byte, error) {
+func (r ConfigResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r.Config)
 }
 
-type YambolStatsResponse map[string]telemetry.QueueStats
+type StatsResponse map[string]telemetry.QueueStats
 
-func (r YambolStatsResponse) GetStatusCode() int {
+func (r StatsResponse) GetStatusCode() int {
 	return http.StatusOK
 }
 
-func (r YambolStatsResponse) JsonMarshalIndent() ([]byte, error) {
+func (r StatsResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
@@ -73,7 +73,7 @@ func (r QueuesGetResponse) GetStatusCode() int {
 	return 200
 }
 
-func (r QueuesGetResponse) JsonMarshalIndent() ([]byte, error) {
+func (r QueuesGetResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
@@ -86,7 +86,7 @@ func (r QueueGetResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r QueueGetResponse) JsonMarshalIndent() ([]byte, error) {
+func (r QueueGetResponse) AsJSON() ([]byte, error) {
 	return jMarshalIndent(r)
 }
 
@@ -98,6 +98,6 @@ func (r EmptyResponse) GetStatusCode() int {
 	return r.StatusCode
 }
 
-func (r EmptyResponse) JsonMarshalIndent() ([]byte, error) {
+func (r EmptyResponse) AsJSON() ([]byte, error) {
 	return []byte{}, nil
 }

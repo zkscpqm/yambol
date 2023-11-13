@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"strings"
 )
 
 type Level int
@@ -27,6 +28,7 @@ func ParseLevel(level string) Level {
 	if level == "" {
 		return LevelInfo
 	}
+	level = strings.ToLower(level)
 	l, ok := logLevelStringToLevelMap[level]
 	if ok {
 		return l
