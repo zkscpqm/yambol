@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"yambol/pkg/transport/model"
 
 	"yambol/config"
 	"yambol/pkg/transport/httpx"
@@ -16,8 +17,10 @@ func (s *Server) home() HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		return s.respond(w, httpx.HomeResponse{
 			StatusCode: http.StatusOK,
-			Uptime:     time.Since(s.startedAt).String(),
-			Version:    util.Version(),
+			BasicInfo: model.BasicInfo{
+				Uptime:  time.Since(s.startedAt),
+				Version: util.Version(),
+			},
 		})
 	}
 }

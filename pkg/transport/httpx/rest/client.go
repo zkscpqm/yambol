@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"yambol/pkg/telemetry"
+	"yambol/pkg/transport/model"
 
 	"yambol/config"
 	"yambol/pkg/transport/httpx"
@@ -122,14 +124,13 @@ func (c *Client) do(ctx context.Context, req *http.Request, headers map[string]s
 	return
 }
 
-func (c *Client) Ping() (*httpx.HomeResponse, error) {
+func (c *Client) Ping() (*model.BasicInfo, error) {
 	ctx, cancel := c.context()
 	defer cancel()
 	return c.PingContext(ctx)
 }
 
-func (c *Client) PingContext(ctx context.Context) (*httpx.HomeResponse, error) {
-	// Todo: test
+func (c *Client) PingContext(ctx context.Context) (*model.BasicInfo, error) {
 	endpoint := httpx.UrlJoin(c.Url, "/")
 	resp, err := c.get(ctx, endpoint, nil)
 	if err != nil {
@@ -144,17 +145,16 @@ func (c *Client) PingContext(ctx context.Context) (*httpx.HomeResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode ping response: %v", err)
 	}
-	return &response, nil
+	return &response.BasicInfo, nil
 }
 
-func (c *Client) Stats() (*httpx.StatsResponse, error) {
+func (c *Client) Stats() (map[string]telemetry.QueueStats, error) {
 	ctx, cancel := c.context()
 	defer cancel()
 	return c.StatsContext(ctx)
 }
 
-func (c *Client) StatsContext(ctx context.Context) (*httpx.StatsResponse, error) {
-	// Todo: test
+func (c *Client) StatsContext(ctx context.Context) (map[string]telemetry.QueueStats, error) {
 	endpoint := httpx.UrlJoin(c.Url, "stats")
 	resp, err := c.get(ctx, endpoint, nil)
 	if err != nil {
@@ -169,7 +169,7 @@ func (c *Client) StatsContext(ctx context.Context) (*httpx.StatsResponse, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode stats response: %v", err)
 	}
-	return &response, nil
+	return response, nil
 }
 
 func (c *Client) Publish(queue, value string) error {
@@ -232,13 +232,13 @@ func (c *Client) ConsumeContext(ctx context.Context, queue string) (string, erro
 	return response.Data, nil
 }
 
-func (c *Client) GetQueues() (*httpx.QueuesGetResponse, error) {
+func (c *Client) GetQueues() (map[string]telemetry.QueueStats, error) {
 	ctx, cancel := c.context()
 	defer cancel()
 	return c.GetQueuesContext(ctx)
 }
 
-func (c *Client) GetQueuesContext(ctx context.Context) (*httpx.QueuesGetResponse, error) {
+func (c *Client) GetQueuesContext(ctx context.Context) (map[string]telemetry.QueueStats, error) {
 
 	endpoint := httpx.UrlJoin(c.Url, "queues")
 	resp, err := c.get(ctx, endpoint, nil)
@@ -254,7 +254,7 @@ func (c *Client) GetQueuesContext(ctx context.Context) (*httpx.QueuesGetResponse
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode queues response: %v", err)
 	}
-	return &queues, nil
+	return queues, nil
 }
 
 func (c *Client) CreateQueueContext(ctx context.Context, queue string, opts config.QueueConfig) error {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"yambol/config"
+	"yambol/pkg/transport/model"
 
 	"yambol/pkg/telemetry"
 )
@@ -32,8 +33,7 @@ func (r ErrorResponse) AsJSON() ([]byte, error) {
 
 type HomeResponse struct {
 	StatusCode int
-	Uptime     string `json:"uptime"`
-	Version    string `json:"version"`
+	model.BasicInfo
 }
 
 func (r HomeResponse) GetStatusCode() int {
