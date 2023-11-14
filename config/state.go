@@ -14,8 +14,8 @@ import (
 
 var (
 	activeState = defaultState()
-	mx          = &sync.RWMutex{}
 	logger      = log.New("CONFIG", log.LevelOff)
+	mx          = &sync.RWMutex{}
 )
 
 type queueStateMap map[string]queueState
