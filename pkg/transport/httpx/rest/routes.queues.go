@@ -12,9 +12,9 @@ import (
 	"yambol/pkg/transport/httpx"
 )
 
-func (s *Server) queues() HandlerFunc {
+func (s *Server) queues() httpx.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
-		target, err := resolveHTTPMethodTarget(r, map[string]HandlerFunc{
+		target, err := resolveHTTPMethodTarget(r, map[string]httpx.HandlerFunc{
 			http.MethodGet:  s.getQueues(),
 			http.MethodPost: s.addNewQueue(),
 		})
@@ -25,16 +25,16 @@ func (s *Server) queues() HandlerFunc {
 	}
 }
 
-func (s *Server) getQueues() HandlerFunc {
+func (s *Server) getQueues() httpx.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
-		resp := httpx.QueuesGetResponse(s.b.Stats())
+		resp := QueuesGetResponse(s.b.Stats())
 		return s.respond(w, resp)
 	}
 }
 
-func (s *Server) addNewQueue() HandlerFunc {
+func (s *Server) addNewQueue() httpx.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
-		qInfo := httpx.QueuesPostRequest{}
+		qInfo := QueuesPostRequest{}
 
 		if err := json.NewDecoder(r.Body).Decode(&qInfo); err != nil {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to decode request body: %v", err))
@@ -42,7 +42,7 @@ func (s *Server) addNewQueue() HandlerFunc {
 		if s.b.QueueExists(qInfo.Name) {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("failed to create queue `%s` as it already exists", qInfo.Name))
 		}
-		if !isValidPath(qInfo.Name) {
+		if !httpx.IsValidQueueName(qInfo.Name) {
 			return s.error(w, http.StatusBadRequest, fmt.Errorf("the queue name `%s` is not valid", qInfo.Name))
 		}
 
@@ -56,13 +56,13 @@ func (s *Server) addNewQueue() HandlerFunc {
 		}
 
 		s.addQueueRoute(qInfo.Name, httpx.DebugPrintHook(s.logger))
-		return s.respond(w, httpx.EmptyResponse{StatusCode: http.StatusCreated})
+		return s.respond(w, EmptyResponse{StatusCode: http.StatusCreated})
 	}
 }
 
-func (s *Server) queue() HandlerFunc {
+func (s *Server) queue() httpx.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
-		target, err := resolveHTTPMethodTarget(r, map[string]HandlerFunc{
+		target, err := resolveHTTPMethodTarget(r, map[string]httpx.HandlerFunc{
 			http.MethodGet:    s.consumeFromQueue(),
 			http.MethodPost:   s.sendMessageToQueue(),
 			http.MethodDelete: s.deleteQueue(),
@@ -74,7 +74,7 @@ func (s *Server) queue() HandlerFunc {
 	}
 }
 
-func (s *Server) consumeFromQueue() HandlerFunc {
+func (s *Server) consumeFromQueue() httpx.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
@@ -87,11 +87,11 @@ func (s *Server) consumeFromQueue() HandlerFunc {
 			return s.error(w, http.StatusInternalServerError, err)
 		}
 
-		return s.respond(w, httpx.QueueGetResponse{StatusCode: 200, Data: message})
+		return s.respond(w, QueueGetResponse{StatusCode: 200, Data: message})
 	}
 }
 
-func (s *Server) sendMessageToQueue() HandlerFunc {
+func (s *Server) sendMessageToQueue() httpx.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
@@ -100,7 +100,7 @@ func (s *Server) sendMessageToQueue() HandlerFunc {
 		}
 
 		var (
-			body httpx.MessageRequest
+			body MessageRequest
 			err  error
 		)
 
@@ -117,11 +117,11 @@ func (s *Server) sendMessageToQueue() HandlerFunc {
 			return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to publish message: %v", err))
 		}
 
-		return s.respond(w, httpx.EmptyResponse{StatusCode: http.StatusOK})
+		return s.respond(w, EmptyResponse{StatusCode: http.StatusOK})
 	}
 }
 
-func (s *Server) deleteQueue() HandlerFunc {
+func (s *Server) deleteQueue() httpx.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) httpx.Response {
 		qName := r.URL.Path[len("/queues/"):]
 
@@ -133,7 +133,7 @@ func (s *Server) deleteQueue() HandlerFunc {
 			return s.error(w, http.StatusInternalServerError, fmt.Errorf("failed to remove queue `%s`: %v", qName, err))
 		}
 
-		return s.respond(w, httpx.EmptyResponse{StatusCode: http.StatusOK})
+		return s.respond(w, EmptyResponse{StatusCode: http.StatusOK})
 	}
 }
 

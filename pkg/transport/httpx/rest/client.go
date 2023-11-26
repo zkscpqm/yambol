@@ -9,11 +9,11 @@ import (
 	"net/http"
 	"strings"
 	"time"
-	"yambol/pkg/telemetry"
-	"yambol/pkg/transport/model"
 
 	"yambol/config"
+	"yambol/pkg/telemetry"
 	"yambol/pkg/transport/httpx"
+	"yambol/pkg/transport/model"
 )
 
 const (
@@ -60,7 +60,7 @@ func (c *Client) ok(resp *http.Response) bool {
 }
 
 func (c *Client) checkError(resp *http.Response) (err error) {
-	var errResp *httpx.ErrorResponse
+	var errResp *ErrorResponse
 	if err = json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
 		return nil
 	}
@@ -140,7 +140,7 @@ func (c *Client) PingContext(ctx context.Context) (*model.BasicInfo, error) {
 	if !c.ok(resp) {
 		return nil, fmt.Errorf("[%d] failed to ping %s: %v", resp.StatusCode, endpoint, c.checkError(resp))
 	}
-	var response httpx.HomeResponse
+	var response HomeResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode ping response: %v", err)
@@ -164,7 +164,7 @@ func (c *Client) StatsContext(ctx context.Context) (map[string]telemetry.QueueSt
 	if !c.ok(resp) {
 		return nil, fmt.Errorf("[%d] failed to get stats: %v", resp.StatusCode, c.checkError(resp))
 	}
-	var response httpx.StatsResponse
+	var response StatsResponse
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode stats response: %v", err)
@@ -188,7 +188,7 @@ func (c *Client) PublishContext(ctx context.Context, queue, value string) error 
 
 func (c *Client) PublishContextTimeout(ctx context.Context, queue, value string, ttl time.Duration) error {
 	endpoint := httpx.UrlJoin(c.Url, "queues", queue)
-	request := httpx.MessageRequest{
+	request := MessageRequest{
 		Message: value,
 		TTL:     int64(ttl.Seconds()),
 	}
@@ -223,7 +223,7 @@ func (c *Client) ConsumeContext(ctx context.Context, queue string) (string, erro
 	if !c.ok(resp) {
 		return "", fmt.Errorf("[%d] failed to consume value from queue %s: %v", resp.StatusCode, queue, c.checkError(resp))
 	}
-	var response httpx.QueueGetResponse
+	var response QueueGetResponse
 
 	err = json.NewDecoder(resp.Body).Decode(&response)
 	if err != nil {
@@ -249,7 +249,7 @@ func (c *Client) GetQueuesContext(ctx context.Context) (map[string]telemetry.Que
 	if !c.ok(resp) {
 		return nil, fmt.Errorf("[%d] failed to get queues: %v", resp.StatusCode, c.checkError(resp))
 	}
-	var queues httpx.QueuesGetResponse
+	var queues QueuesGetResponse
 	err = json.NewDecoder(resp.Body).Decode(&queues)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode queues response: %v", err)
@@ -258,7 +258,7 @@ func (c *Client) GetQueuesContext(ctx context.Context) (map[string]telemetry.Que
 }
 
 func (c *Client) CreateQueueContext(ctx context.Context, queue string, opts config.QueueConfig) error {
-	qInfo := httpx.QueuesPostRequest{
+	qInfo := QueuesPostRequest{
 		Name:        queue,
 		QueueConfig: opts,
 	}

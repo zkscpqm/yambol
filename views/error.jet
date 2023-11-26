@@ -1,0 +1,6 @@
+{{extends "layouts/application.jet"}}
+{{block body()}}
+<main>
+    ERROR
+</main>
+{{end}}

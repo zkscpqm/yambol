@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"yambol/pkg/transport/httpx/fe"
 
 	"yambol/config"
 	"yambol/pkg/broker"
@@ -18,6 +19,8 @@ const (
 	DefaultRESTPortSecure   = 21420
 	DefaultGRPCPortInsecure = 21421
 	DefaultGRPCPortSecure   = 21422
+	DefaultHTTPPortInsecure = 80
+	DefaultHTTPPortSecure   = 443
 )
 
 func main() {
@@ -96,6 +99,39 @@ func main() {
 		}
 	}
 
+	runHTTPServer := func() {
+		if !cfg.API.HTTP.Enabled {
+			return
+		}
+		wg.Add(1)
+		s := fe.NewServer(b, nil, logger)
+		port := cfg.API.HTTP.Port
+		if port <= 0 {
+			if cfg.API.HTTP.TlsEnabled {
+				port = DefaultHTTPPortSecure
+			} else {
+				port = DefaultHTTPPortInsecure
+			}
+		}
+		if cfg.API.HTTP.TlsEnabled {
+			go func() {
+				err = s.ListenAndServe(port, certPath, keyPath)
+				if err != nil {
+					logger.Error("HTTP (tls=on) server [:%d] crashed: %v", port, err)
+				}
+				wg.Done()
+			}()
+		} else {
+			go func() {
+				err = s.ListenAndServeInsecure(port)
+				if err != nil {
+					logger.Error("HTTP (tls=off) server [:%d] crashed: %v", port, err)
+				}
+				wg.Done()
+			}()
+		}
+	}
+
 	runGRPCServer := func() {
 		if !cfg.API.GRPC.Enabled {
 			return
@@ -126,6 +162,7 @@ func main() {
 	}
 
 	runRESTServer()
+	runHTTPServer()
 	runGRPCServer()
 	wg.Wait()
 }

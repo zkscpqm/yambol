@@ -1,9 +1,12 @@
-package rest
+package fe
 
 import (
 	"fmt"
+	"github.com/CloudyKit/jet"
 	"net/http"
+	"path"
 	"time"
+	"yambol/pkg/util"
 	"yambol/pkg/util/log"
 
 	"yambol/pkg/broker"
@@ -12,8 +15,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var forbiddenQueueNames = []string{
-	"broadcast",
+var (
+	views = jet.NewHTMLSet(
+		path.Join(util.ProjectRootDirectoryMust(), "views"),
+	)
+)
+
+func init() {
+	views.SetDevelopmentMode(true)
 }
 
 type Server struct {
@@ -34,7 +43,7 @@ func NewServer(b *broker.MessageBroker, defaultHeaders map[string]string, logger
 		router:         rtr,
 		b:              b,
 		defaultHeaders: defaultHeaders,
-		logger:         logger.NewFrom("REST"),
+		logger:         logger.NewFrom("HTTP"),
 	}
 }
 
@@ -48,53 +57,25 @@ func (s *Server) ListenAndServe(port int, certFile, keyFile string) error {
 	addr := fmt.Sprintf(":%d", port)
 	s.startedAt = time.Now()
 	if certFile == "" || keyFile == "" {
-		s.logger.Info("Starting Yambol REST API with http (insecure) at [%d]", port)
+		s.logger.Info("Starting Yambol Frontend with http (insecure) at [%d]", port)
 		return http.ListenAndServe(addr, s.router)
 	}
-	s.logger.Info("Starting Yambol REST API with https (secure) at [%d]", port)
+	s.logger.Info("Starting Yambol Frontend with https (secure) at [%d]", port)
 	return http.ListenAndServeTLS(addr, certFile, keyFile, s.router)
 }
 
 func (s *Server) routes() {
+	s.hostLocalStatic()
 	s.route(
 		"/",
 		s.home(),
-		httpx.DebugPrintHook(s.logger),
+		httpx.DebugPrintHook(s.logger.WithLevel(log.LevelInfo)), // To avoid printing huge HTML return values
 	).Methods(http.MethodGet)
-
-	s.route(
-		"/stats",
-		s.stats(),
-		httpx.DebugPrintHook(s.logger),
-	).Methods(http.MethodGet)
-
 	s.route(
 		"/queues",
 		s.queues(),
-		httpx.DebugPrintHook(s.logger),
-	).Methods(http.MethodGet, http.MethodPost)
-
-	s.route(
-		"/running_config",
-		s.runningConfig(),
-		httpx.DebugPrintHook(s.logger),
-	).Methods(http.MethodGet, http.MethodPost)
-
-	s.route(
-		"/startup_config",
-		s.getStartupConfig(),
-		httpx.DebugPrintHook(s.logger),
+		httpx.DebugPrintHook(s.logger.WithLevel(log.LevelInfo)),
 	).Methods(http.MethodGet)
-
-	s.route(
-		"/running_config/save",
-		s.copyRunCfgToStartCfg(),
-		httpx.DebugPrintHook(s.logger),
-	).Methods(http.MethodPut)
-
-	for _, qName := range s.b.Queues() {
-		s.addQueueRoute(qName, httpx.DebugPrintHook(s.logger))
-	}
 }
 
 func (s *Server) hook(path string, wrapped httpx.HandlerFunc, hooks ...httpx.Middleware) http.HandlerFunc {
@@ -131,7 +112,7 @@ func (s *Server) respond(w http.ResponseWriter, response Response) Response {
 	for k, v := range s.defaultHeaders {
 		w.Header().Set(k, v)
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if b, err := response.Render(); err != nil {
 		if errResp, ok := response.(ErrorResponse); ok {
 			// worst case scenario. Yes it actually happened
@@ -147,15 +128,6 @@ func (s *Server) respond(w http.ResponseWriter, response Response) Response {
 	return response
 }
 
-func resolveHTTPMethodTarget(r *http.Request, targets map[string]httpx.HandlerFunc) (httpx.HandlerFunc, error) {
-	allowedMethods := make([]string, 0, len(targets))
-	for k := range targets {
-		allowedMethods = append(allowedMethods, k)
-	}
-	target, ok := targets[r.Method]
-	if !ok {
-		return nil, fmt.Errorf("method %s not allowed on (%s), allowed methods: %v", r.Method, r.URL.Path, allowedMethods)
-	}
-	return target, nil
-
+func (s *Server) isError(r Response) bool {
+	return r.GetStatusCode() > 399
 }

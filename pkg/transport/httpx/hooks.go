@@ -57,7 +57,7 @@ func DebugPrintHook(logger *log.Logger) Middleware {
 			// Avoid doing this JSON marshaling if we are not in debug mode to begin with
 			if logger.GetLevel() <= log.LevelDebug {
 				responseBody := make([]byte, 0)
-				responseBody, err = resp.AsJSON()
+				responseBody, err = resp.Render()
 				logger.Debug("Response Body:\n%s", string(responseBody))
 			}
 

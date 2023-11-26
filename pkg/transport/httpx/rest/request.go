@@ -1,4 +1,4 @@
-package httpx
+package rest
 
 import (
 	"time"

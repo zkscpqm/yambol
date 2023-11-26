@@ -6,8 +6,11 @@
     },
     "api": {
         "rest": {
-            "enabled": true,
+            "enabled": false,
             "port": 21419
+        },
+        "http": {
+            "enabled": true
         },
         "grpc": {
             "port": 21421

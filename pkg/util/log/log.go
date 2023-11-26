@@ -149,6 +149,12 @@ func (l *Logger) NewFrom(name string) *Logger {
 	return New(name, l.level, newHandlers...)
 }
 
+func (l *Logger) WithLevel(level Level) *Logger {
+	nu := l.NewFrom(l.name)
+	nu.SetLevel(level)
+	return nu
+}
+
 func (l *Logger) Off() {
 	l.SetLevel(LevelOff)
 }

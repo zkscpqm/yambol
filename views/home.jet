@@ -1,0 +1,7 @@
+{{extends "layouts/application.jet"}}
+{{import "layouts/navbar.jet"}}
+{{block body()}}
+  <main>
+    Home
+  </main>
+{{end}}
