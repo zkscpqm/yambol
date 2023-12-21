@@ -18,7 +18,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.21'
 
       - name: Run Unit Tests
         run: go test -v ./pkg/...
@@ -55,13 +55,13 @@ jobs:
         run: |
           if [ "${{ steps.get_version.outputs.version }}" == "${{ steps.latest_release.outputs.version }}" ]; then
             echo "Version is the same. No need to build or release."
-            exit 1
+            exit 0
           fi
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.21'
 
       - name: Install mingw-w64
         run: sudo apt-get install -y mingw-w64
